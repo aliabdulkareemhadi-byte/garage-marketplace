@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CartProvider } from "../src/context/CartContext";
 import { AuthProvider } from "../src/context/AuthContext";
+import { WalletProvider } from "../src/context/WalletContext";
 import { colors } from "../src/theme/theme";
 
 // Force RTL globally
@@ -34,20 +35,22 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <CartProvider>
-          <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="company/[id]" />
-            <Stack.Screen name="workshop/[id]" />
-            <Stack.Screen name="product/[id]" />
-            <Stack.Screen name="booking/[id]" />
-            <Stack.Screen name="company-dashboard" />
-            <Stack.Screen name="workshop-dashboard" />
-          </Stack>
-        </CartProvider>
+        <WalletProvider>
+          <CartProvider>
+            <StatusBar style="dark" />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="company/[id]" />
+              <Stack.Screen name="workshop/[id]" />
+              <Stack.Screen name="product/[id]" />
+              <Stack.Screen name="booking/[id]" />
+              <Stack.Screen name="company-dashboard" />
+              <Stack.Screen name="workshop-dashboard" />
+            </Stack>
+          </CartProvider>
+        </WalletProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
