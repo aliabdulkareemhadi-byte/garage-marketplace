@@ -1,14 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { User, Mail, Lock, Phone, ChevronRight } from "lucide-react-native";
+import { User, Mail, Lock, Phone, ChevronRight, AlertCircle } from "lucide-react-native";
 import { colors, spacing, radius } from "../../src/theme/theme";
 
 export default function Register() {
   const router = useRouter();
   const [form, setForm] = useState({ name: "", email: "", phone: "", pwd: "" });
   const [agree, setAgree] = useState(false);
+  const [errors] = useState<{ name?: string; email?: string; phone?: string; pwd?: string }>({});
+  const [topError] = useState<string>("");
+  const [loading] = useState<boolean>(false);
+
+  const submit = () => {
+    // Placeholder: real registration is handled elsewhere in the flow.
+    router.back();
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -31,10 +39,10 @@ export default function Register() {
           )}
 
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
-            <Field label="الاسم الكامل" icon={<User size={18} color={colors.textLight} />} value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} placeholder="محمد أحمد" testID="register-name-input" error={errors.name} />
-            <Field label="البريد الإلكتروني" icon={<Mail size={18} color={colors.textLight} />} value={form.email} onChangeText={(t) => setForm({ ...form, email: t })} placeholder="name@example.com" testID="register-email-input" keyboardType="email-address" autoCapitalize="none" error={errors.email} />
-            <Field label="رقم الجوال" icon={<Phone size={18} color={colors.textLight} />} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} placeholder="05xxxxxxxx" testID="register-phone-input" keyboardType="phone-pad" error={errors.phone} />
-            <Field label="كلمة المرور" icon={<Lock size={18} color={colors.textLight} />} value={form.pwd} onChangeText={(t) => setForm({ ...form, pwd: t })} placeholder="••••••••" testID="register-password-input" secureTextEntry error={errors.pwd} />
+            <Field label="الاسم الكامل" icon={<User size={18} color={colors.textLight} />} value={form.name} onChangeText={(t: string) => setForm({ ...form, name: t })} placeholder="محمد أحمد" testID="register-name-input" error={errors.name} />
+            <Field label="البريد الإلكتروني" icon={<Mail size={18} color={colors.textLight} />} value={form.email} onChangeText={(t: string) => setForm({ ...form, email: t })} placeholder="name@example.com" testID="register-email-input" keyboardType="email-address" autoCapitalize="none" error={errors.email} />
+            <Field label="رقم الجوال" icon={<Phone size={18} color={colors.textLight} />} value={form.phone} onChangeText={(t: string) => setForm({ ...form, phone: t })} placeholder="05xxxxxxxx" testID="register-phone-input" keyboardType="phone-pad" error={errors.phone} />
+            <Field label="كلمة المرور" icon={<Lock size={18} color={colors.textLight} />} value={form.pwd} onChangeText={(t: string) => setForm({ ...form, pwd: t })} placeholder="••••••••" testID="register-password-input" secureTextEntry error={errors.pwd} />
 
             <TouchableOpacity testID="register-agree" onPress={() => setAgree((a) => !a)} style={styles.agreeRow}>
               <View style={[styles.checkbox, agree && styles.checkboxOn]}>

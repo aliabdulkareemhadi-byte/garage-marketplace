@@ -1,21 +1,15 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar, Clock, Car, Phone, User } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { workshopBookings, type WorkshopBooking } from "../../src/data/mockData";
 import EmptyState from "../../src/components/EmptyState";
-
-const statusColors: Record<WorkshopBooking["status"], { bg: string; fg: string }> = {
-  "جديد": { bg: "#E6F0FF", fg: "#0066FF" },
-  "مؤكد": { bg: "#D1FAE5", fg: "#10B981" },
-  "قيد التنفيذ": { bg: "#FEF3C7", fg: "#F59E0B" },
-  "مكتمل": { bg: "#F3F4F6", fg: "#4B5563" },
-  "ملغي": { bg: "#FEE2E2", fg: "#EF4444" },
-};
+import FilterTabs, { type FilterTab } from "../../src/components/FilterTabs";
+import { getBookingStatusColor } from "../../src/utils/status";
 
 type Tab = "الكل" | WorkshopBooking["status"];
-const tabs: Tab[] = ["الكل", "جديد", "مؤكد", "قيد التنفيذ", "مكتمل", "ملغي"];
+const tabOrder: Tab[] = ["الكل", "جديد", "مؤكد", "قيد التنفيذ", "مكتمل", "ملغي"];
 
 export default function WorkshopBookingsScreen() {
   const [tab, setTab] = useState<Tab>("جديد");
@@ -56,21 +50,16 @@ export default function WorkshopBookingsScreen() {
         <StatMini value={counts["مكتمل"]} label="مكتمل" color={colors.success} />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {tabs.map((t) => {
-          const count = t === "الكل" ? items.length : counts[t];
-          return (
-            <TouchableOpacity key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.chip, tab === t && styles.chipActive]}>
-              <Text style={[styles.chipTxt, tab === t && styles.chipTxtActive]}>{t}</Text>
-              {count > 0 && (
-                <View style={[styles.chipBadge, tab === t && { backgroundColor: "rgba(255,255,255,0.25)" }]}>
-                  <Text style={[styles.chipBadgeTxt, tab === t && { color: "#fff" }]}>{count}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <FilterTabs
+        tabs={tabOrder.map<FilterTab<Tab>>((t) => ({
+          value: t,
+          count: t === "الكل" ? items.length : counts[t],
+        }))}
+        active={tab}
+        onChange={setTab}
+        showCounts
+        testIDPrefix="tab"
+      />
 
       <FlatList
         data={list}
@@ -86,7 +75,7 @@ export default function WorkshopBookingsScreen() {
           />
         }
         renderItem={({ item }) => {
-          const sc = statusColors[item.status];
+          const sc = getBookingStatusColor(item.status);
           return (
             <View style={styles.card} testID={`booking-${item.id}`}>
               <View style={styles.cardTop}>
@@ -183,14 +172,6 @@ const styles = StyleSheet.create({
   statDot: { width: 6, height: 24, borderRadius: 3 },
   statVal: { fontSize: 16, fontWeight: "800", color: colors.textMain },
   statLbl: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
-
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, flexDirection: "row", paddingBottom: spacing.md },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginEnd: spacing.sm },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTxt: { fontSize: 12, color: colors.textMuted, fontWeight: "700" },
-  chipTxtActive: { color: "#fff" },
-  chipBadge: { minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
-  chipBadgeTxt: { fontSize: 10, fontWeight: "800", color: colors.accent },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },

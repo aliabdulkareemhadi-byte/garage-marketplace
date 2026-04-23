@@ -1,60 +1,34 @@
-export type Company = {
-  id: string;
-  name: string;
-  category: string;
-  rating: number;
-  reviews: number;
-  logo: string;
-  cover: string;
-  description: string;
-  city: string;
-  services: string[];
-};
+import type {
+  Company,
+  Workshop,
+  Product,
+  Service,
+  NotificationItem,
+  WorkshopBooking,
+  CompanyOrder,
+  CompanyOffer,
+  WorkshopOffer,
+} from "../types";
 
-export type Workshop = {
-  id: string;
-  name: string;
-  rating: number;
-  reviews: number;
-  image: string;
-  city: string;
-  area: string;
-  open: boolean;
-  priceRange: string;
-  services: { id: string; name: string; price: number }[];
-};
-
-export type Product = {
-  id: string;
-  title: string;
-  brand: string;
-  price: number;
-  oldPrice?: number;
-  rating: number;
-  reviews: number;
-  images: string[];
-  description: string;
-  specs: { label: string; value: string }[];
-  inStock: boolean;
-};
-
-export type Service = {
-  id: string;
-  name: string;
-  icon: string;
-  priceFrom: number;
-  duration: string;
-  description: string;
-};
-
-export type NotificationItem = {
-  id: string;
-  title: string;
-  body: string;
-  time: string;
-  read: boolean;
-  type: "order" | "booking" | "promo" | "system";
-};
+// Re-export all domain types for backward compatibility with existing
+// call-sites that do `import { Product } from "../data/mockData"`.
+export type {
+  Company,
+  Workshop,
+  Product,
+  Service,
+  NotificationItem,
+  UserRole,
+  Session,
+  WorkshopBooking,
+  WorkshopBookingStatus,
+  CompanyOrder,
+  CompanyOrderStatus,
+  CompanyOffer,
+  CompanyOfferState,
+  WorkshopOffer,
+  WorkshopOfferState,
+} from "../types";
 
 export const companies: Company[] = [
   {
@@ -272,19 +246,6 @@ export const bookings = [
   { id: "b202", workshop: "ورشة النخبة", service: "فحص شامل", date: "2026-02-08", time: "02:00 م", status: "مكتمل" },
 ];
 
-// Bookings from the workshop owner's perspective
-export type WorkshopBooking = {
-  id: string;
-  customerName: string;
-  customerPhone: string;
-  service: string;
-  date: string;
-  time: string;
-  vehicle: string;
-  price: number;
-  status: "جديد" | "مؤكد" | "قيد التنفيذ" | "مكتمل" | "ملغي";
-};
-
 export const workshopBookings: WorkshopBooking[] = [
   { id: "wb1", customerName: "أحمد محمد", customerPhone: "0551234567", service: "تغيير زيت + فلتر", date: "2026-02-15", time: "10:00 ص", vehicle: "تويوتا كامري 2022", price: 180, status: "جديد" },
   { id: "wb2", customerName: "خالد السعيد", customerPhone: "0559876543", service: "فحص شامل", date: "2026-02-15", time: "12:00 م", vehicle: "نيسان التيما 2021", price: 250, status: "مؤكد" },
@@ -292,35 +253,6 @@ export const workshopBookings: WorkshopBooking[] = [
   { id: "wb4", customerName: "محمد الحربي", customerPhone: "0553334455", service: "تغيير زيت + فلتر", date: "2026-02-12", time: "03:00 م", vehicle: "كيا سبورتاج 2019", price: 180, status: "مكتمل" },
   { id: "wb5", customerName: "عبدالله القحطاني", customerPhone: "0554445566", service: "فحص شامل", date: "2026-02-10", time: "11:00 ص", vehicle: "شيفروليه ماليبو 2018", price: 250, status: "مكتمل" },
 ];
-
-// Session / role management (mock)
-export type UserRole = "customer" | "company" | "workshop";
-
-export type Session = {
-  role: UserRole;
-  name: string;
-  email: string;
-  entityId?: string; // id of the company/workshop the owner manages
-};
-
-// Company-side: orders, offers, sales stats
-export type CompanyOrderStatus = "جديد" | "مقبول" | "قيد التجهيز" | "مكتمل" | "ملغي";
-
-export type CompanyOrder = {
-  id: string;
-  customerName: string;
-  customerPhone: string;
-  city: string;
-  productId: string;
-  productTitle: string;
-  productImage: string;
-  quantity: number;
-  unitPrice: number;
-  total: number;
-  date: string;
-  paymentMethod: "دفع عند الاستلام" | "بطاقة" | "محفظة";
-  status: CompanyOrderStatus;
-};
 
 export const companyOrders: CompanyOrder[] = [
   { id: "co1", customerName: "أحمد محمد", customerPhone: "0551234567", city: "الرياض", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", productImage: products[0].images[0], quantity: 2, unitPrice: 175, total: 350, date: "2026-02-14", paymentMethod: "بطاقة", status: "جديد" },
@@ -331,21 +263,6 @@ export const companyOrders: CompanyOrder[] = [
   { id: "co6", customerName: "فهد الدوسري", customerPhone: "0555556677", city: "جدة", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", productImage: products[0].images[0], quantity: 2, unitPrice: 175, total: 350, date: "2026-02-10", paymentMethod: "دفع عند الاستلام", status: "مكتمل" },
   { id: "co7", customerName: "ناصر الشهراني", customerPhone: "0556667788", city: "الرياض", productId: "p3", productTitle: "فلتر هواء بوش أصلي", productImage: products[2].images[0], quantity: 2, unitPrice: 85, total: 170, date: "2026-02-08", paymentMethod: "بطاقة", status: "ملغي" },
 ];
-
-export type CompanyOfferState = "نشط" | "منتهي" | "مجدول";
-
-export type CompanyOffer = {
-  id: string;
-  title: string;
-  productId?: string;
-  productTitle: string;
-  image: string;
-  discountPercent: number;
-  startDate: string;
-  endDate: string;
-  state: CompanyOfferState;
-  description: string;
-};
 
 export const companyOffers: CompanyOffer[] = [
   { id: "of1", title: "خصم الشتاء على الزيوت", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", image: products[0].images[0], discountPercent: 20, startDate: "2026-02-01", endDate: "2026-02-28", state: "نشط", description: "خصم حصري على زيوت المحركات طوال فبراير." },
@@ -368,7 +285,6 @@ export const companyStats = {
   },
 };
 
-// Workshop stats (mock)
 export const workshopStats = {
   totalBookings: workshopBookings.length + 12,
   monthlyBookings: workshopBookings.length,
@@ -383,18 +299,6 @@ export const workshopStats = {
   },
 };
 
-// Workshop offers (mock)
-export type WorkshopOfferState = "نشط" | "منتهي" | "مجدول";
-export type WorkshopOffer = {
-  id: string;
-  title: string;
-  serviceName: string;
-  discountPercent: number;
-  startDate: string;
-  endDate: string;
-  state: WorkshopOfferState;
-  description: string;
-};
 export const workshopOffers: WorkshopOffer[] = [
   { id: "wof1", title: "خصم تغيير الزيت", serviceName: "تغيير زيت + فلتر", discountPercent: 15, startDate: "2026-02-01", endDate: "2026-02-28", state: "نشط", description: "خصم 15% على خدمة تغيير الزيت طوال فبراير." },
   { id: "wof2", title: "الفحص الشامل المجاني", serviceName: "فحص شامل", discountPercent: 50, startDate: "2026-02-10", endDate: "2026-02-20", state: "نشط", description: "فحص شامل بنصف السعر لفترة محدودة." },

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ScrollView, Alert } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Tag, Plus, Edit3, Trash2, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { companyOffers as seed, type CompanyOffer, type CompanyOfferState } from "../../src/data/mockData";
 import EmptyState from "../../src/components/EmptyState";
+import FilterTabs from "../../src/components/FilterTabs";
 
 const stateMeta: Record<CompanyOfferState, { bg: string; fg: string; icon: React.ReactNode }> = {
   "نشط": { bg: "#D1FAE5", fg: "#10B981", icon: <CheckCircle2 size={12} color="#10B981" /> },
@@ -44,13 +45,7 @@ export default function CompanyOffers() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {filters.map((f) => (
-          <TouchableOpacity key={f} testID={`filter-${f}`} onPress={() => setFilter(f)} style={[styles.chip, filter === f && styles.chipActive]}>
-            <Text style={[styles.chipTxt, filter === f && styles.chipTxtActive]}>{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FilterTabs tabs={filters} active={filter} onChange={setFilter} />
 
       <FlatList
         data={list}
@@ -124,12 +119,6 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, color: colors.textMuted, textAlign: "right", marginTop: 2 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.primary, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.md },
   addTxt: { color: "#fff", fontSize: 12, fontWeight: "800" },
-
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, flexDirection: "row", paddingBottom: spacing.md },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginEnd: spacing.sm },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTxt: { fontSize: 12, color: colors.textMuted, fontWeight: "700" },
-  chipTxtActive: { color: "#fff" },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },

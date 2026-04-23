@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, Switch, ScrollView, TextInput } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Edit3, Trash2, Plus, Package, Star, Search, Images, EyeOff } from "lucide-react-native";
+import { Edit3, Trash2, Plus, Package, Star, Images, EyeOff } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { products as seed, type Product } from "../../src/data/mockData";
 import EmptyState from "../../src/components/EmptyState";
+import SearchBar from "../../src/components/SearchBar";
+import FilterTabs from "../../src/components/FilterTabs";
 
 type Filter = "الكل" | "نشط" | "معطّل" | "غير متوفر";
 
@@ -49,21 +51,18 @@ export default function CompanyProducts() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchWrap}>
-        <Search size={16} color={colors.textLight} />
-        <Text style={{ flex: 0 }}>{/* spacer */}</Text>
-        <View style={{ flex: 1 }}>
-          <TextInputWrap value={query} onChangeText={setQuery} placeholder="ابحث في منتجاتك..." />
-        </View>
-      </View>
+      <SearchBar
+        testID="products-search"
+        value={query}
+        onChangeText={setQuery}
+        placeholder="ابحث في منتجاتك..."
+      />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {(["الكل", "نشط", "معطّل", "غير متوفر"] as Filter[]).map((f) => (
-          <TouchableOpacity key={f} testID={`filter-${f}`} onPress={() => setFilter(f)} style={[styles.chip, filter === f && styles.chipActive]}>
-            <Text style={[styles.chipTxt, filter === f && styles.chipTxtActive]}>{f}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <FilterTabs
+        tabs={["الكل", "نشط", "معطّل", "غير متوفر"] as Filter[]}
+        active={filter}
+        onChange={setFilter}
+      />
 
       <FlatList
         data={list}
@@ -137,8 +136,6 @@ export default function CompanyProducts() {
   );
 }
 
-function _legacy() { return null; }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg },
@@ -146,15 +143,6 @@ const styles = StyleSheet.create({
   sub: { fontSize: 11, color: colors.textMuted, textAlign: "right", marginTop: 2 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.primary, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.md },
   addTxt: { color: "#fff", fontSize: 13, fontWeight: "800" },
-
-  searchWrap: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginHorizontal: spacing.lg, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, height: 44, borderWidth: 1, borderColor: colors.border },
-  searchInput: { flex: 1, fontSize: 13, color: colors.textMain, textAlign: "right", paddingVertical: 0 },
-
-  chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, flexDirection: "row", paddingBottom: spacing.md },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginEnd: spacing.sm },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTxt: { fontSize: 12, color: colors.textMuted, fontWeight: "700" },
-  chipTxtActive: { color: "#fff" },
 
   list: { paddingHorizontal: spacing.lg, paddingTop: 0, paddingBottom: spacing.xxl },
   row: { flexDirection: "row", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
