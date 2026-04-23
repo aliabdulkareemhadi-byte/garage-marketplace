@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 6 — Hoisted WalletProvider to root /app/_layout.tsx. Verified that admin & workshop routes both reach the provider (no 'must be used within WalletProvider' errors). HOWEVER, STATE SHARING IS STILL BROKEN on web: definitive mount-counter instrumentation proves the root _layout.tsx (and therefore WalletProvider) REMOUNTS on every route change in this app's web configuration (output:'static'). Observed sequence with a window.__WP_MOUNTS__ counter: workshop/wallet → mounts=1 bal=1500 → nav /admin/wallet-requests → mounts=2 bal=1500 (reset) → approve req-1001 → mounts=3 bal=6500 → nav /workshop-dashboard/wallet → mounts=4 bal=1500 (reset again). Therefore admin→workshop never sees 6,500; first promote insufficient-balance test, second admin approve (+50k), and the sufficient-balance promote flow all fail because each new route begins with a fresh 1,500 balance. The hoist is a no-op on this app's web deployment.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "WalletContext sharing between /admin/wallet-requests and /workshop-dashboard/* (wallet & ads)",
+        "issue": "Root _layout.tsx remounts on every route change in Expo Router web (output:'static'), so the hoisted <WalletProvider> re-initializes to initialWallet each time. Admin approvals don't propagate to the workshop wallet/ads screens. Step 4: expected 6,500 → got 1,500. Step 6–7: expected 56,500 then 31,500 after promote → got 1,500 throughout. Step 5 'الرصيد غير كافٍ' alert never fires because balance is 1,500 (<25,000) but RN Alert on web isn't captured either way; ad-3 never becomes مُروَّج via real flow. Mount counter PROOF: mounts goes 1→2→3→4 on each push, and balance snaps back to 1500 between screens.",
+        "affected_testIDs": ["admin-approve-req-1001", "admin-approve-req-1004", "promote-ad-3", "wallet-back"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "Playwright diagnostic runs (3) — see automation logs for 2026-04-23 21:04–21:09 UTC"
+  ],
+  "action_items": [
+    "MUST persist wallet state outside React component tree so it survives root-layout remounts. Recommended options: (a) move wallet to a Zustand/Jotai store (module-level singleton) — simplest drop-in; (b) keep Context but back it with AsyncStorage (localStorage on web) and hydrate on mount; (c) lift to a plain module variable + event emitter. Option (a) is cleanest and requires ~20 lines: createStore + useWalletStore hook replacing WalletContext.",
+    "Independently investigate why the root _layout remounts on route change in web static mode. Possible culprits: the `ready` useState + 50ms setTimeout gate in _layout.tsx resets on every route render; or each route in output:'static' mode hydrates its own React tree. Either way, Context alone cannot bridge this — persistence is required.",
+    "After switching to persistent store, re-run full 8-scenario matrix from the review request (initial 1,500 → approve 5k → 6,500 on both screens → insufficient promote → admin approve 50k → 56,500 → promote 25k → 31,500 + مُروَّج → regression checks)."
+  ],
+  "critical_code_review_comments": [
+    "src/context/WalletContext.tsx is well-written (functional setState updaters, no stale closures). The bug is architectural, not inside WalletContext.",
+    "app/_layout.tsx gates children behind a 50ms `ready` useState. In web output:'static' mode this gate resets on each route change, compounding the remount. Consider removing the gate or moving the providers above it.",
+    "No AsyncStorage/localStorage persistence for wallet — mandatory for multi-screen shared state when running as a static-rendered Expo web app."
+  ],
+  "updated_files": [
+    "src/context/WalletContext.tsx — temporarily added a diagnostic window.__WP_MOUNTS__ counter to prove the remount theory; THIS HAS BEEN REVERTED back to the original code. File is identical to pre-test state."
+  ],
+  "success_rate": {
+    "backend": "N/A (frontend-only test per request)",
+    "frontend": "25% (2/8 scenarios pass — only the initial 1,500 display on each screen independently and the admin approve→6,500 within admin screen work; all cross-screen sharing fails)"
+  },
+  "seed_data_creation": "None — used existing mock data (initialWallet=1500, req-1001..req-1004).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The shared-provider approach doesn't work on this Expo Router web app (output:'static'). Root _layout remounts on every route change — proven with a mount counter (1→2→3→4 across 4 navigations, balance reset to 1500 each remount). Next iteration MUST use a store that lives outside the React tree (Zustand/Jotai) or add AsyncStorage persistence inside WalletContext. After that fix, verify via: set balance on /admin, then navigate to /workshop-dashboard/wallet and confirm the updated number is visible. Use client-side nav via history.pushState + PopStateEvent (the window/JS heap is preserved even though React tree remounts).",
+  "rca_of_issue": "RCA: Expo Router web output='static' + the <View ready-gate> in app/_layout.tsx causes the root component tree (including WalletProvider) to unmount+remount on every route change. React Context state lives inside that tree, so it is wiped. Hoisting the provider to the root doesn't help because the root itself remounts. Reproduction (verified): (1) open /workshop-dashboard/wallet → window.__WP_MOUNTS__=1, balance=1500. (2) history.pushState('/admin/wallet-requests') + popstate → mounts=2, balance=1500 (reset). (3) click admin-approve-req-1001 → mounts=3, balance=6500 (correct within admin screen). (4) history.pushState('/workshop-dashboard/wallet') → mounts=4, balance=1500 (reset again). Mitigation: persist wallet state outside React via Zustand (recommended) or AsyncStorage; alternatively, convert web output to 'single' (SPA) so root _layout stops remounting — but this changes app-wide behaviour and should be reviewed by main agent."
+}
