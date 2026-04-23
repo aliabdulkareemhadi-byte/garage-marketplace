@@ -17,6 +17,10 @@ export type Ad = {
   status: AdStatus;
   promotionPrice: number;
   isPaid: boolean;
+  // Firestore-backed fields (optional to preserve compatibility with mock seeds).
+  ownerUid?: string;
+  createdAt?: any; // firestore Timestamp on read; serverTimestamp() on write
+  updatedAt?: any;
 };
 
 export const AD_PRICE_NORMAL = 25000;
