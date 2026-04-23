@@ -8,6 +8,7 @@ import { companies, workshops, products, services } from "../../src/data/mockDat
 import CompanyCard from "../../src/components/CompanyCard";
 import WorkshopCard from "../../src/components/WorkshopCard";
 import ProductCard from "../../src/components/ProductCard";
+import AdsSection from "../../src/components/AdsSection";
 
 export default function Home() {
   const router = useRouter();
@@ -83,6 +84,9 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Sponsored Ads */}
+        <AdsSection />
 
         {/* Companies */}
         <SectionHeader title="الشركات" onAll={() => {}} />

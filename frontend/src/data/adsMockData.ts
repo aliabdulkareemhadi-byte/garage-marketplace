@@ -47,6 +47,48 @@ export const initialWorkshopAds: Ad[] = [
     promotionPrice: AD_PRICE_NORMAL,
     isPaid: false,
   },
+  {
+    id: "ad-4",
+    title: "تغيير زيت احترافي",
+    description: "زيوت أصلية وخدمة سريعة لجميع أنواع السيارات.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=800&q=60",
+    advertiserType: "workshop",
+    startDate: "2026-02-05",
+    endDate: "2026-03-05",
+    isFeatured: false,
+    status: "active",
+    promotionPrice: AD_PRICE_NORMAL,
+    isPaid: true,
+  },
+  {
+    id: "ad-5",
+    title: "فحص كهرباء السيارة",
+    description: "تشخيص شامل لمنظومة الكهرباء بأحدث الأجهزة.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&q=60",
+    advertiserType: "workshop",
+    startDate: "2026-02-10",
+    endDate: "2026-03-15",
+    isFeatured: true,
+    status: "active",
+    promotionPrice: AD_PRICE_FEATURED,
+    isPaid: true,
+  },
+  {
+    id: "ad-6",
+    title: "صيانة التكييف الصيفية",
+    description: "تعبئة غاز وتنظيف مكيف السيارة بعروض حصرية.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=60",
+    advertiserType: "workshop",
+    startDate: "2026-02-12",
+    endDate: "2026-04-01",
+    isFeatured: false,
+    status: "active",
+    promotionPrice: AD_PRICE_NORMAL,
+    isPaid: true,
+  },
 ];
 
 export const AD_PLACEHOLDER_IMAGE = PLACEHOLDER;
