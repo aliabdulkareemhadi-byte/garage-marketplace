@@ -271,3 +271,34 @@ export const bookings = [
   { id: "b201", workshop: "ورشة الفارس", service: "تغيير زيت + فلتر", date: "2026-02-15", time: "10:00 ص", status: "مؤكد" },
   { id: "b202", workshop: "ورشة النخبة", service: "فحص شامل", date: "2026-02-08", time: "02:00 م", status: "مكتمل" },
 ];
+
+// Bookings from the workshop owner's perspective
+export type WorkshopBooking = {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  service: string;
+  date: string;
+  time: string;
+  vehicle: string;
+  price: number;
+  status: "جديد" | "مؤكد" | "قيد التنفيذ" | "مكتمل" | "ملغي";
+};
+
+export const workshopBookings: WorkshopBooking[] = [
+  { id: "wb1", customerName: "أحمد محمد", customerPhone: "0551234567", service: "تغيير زيت + فلتر", date: "2026-02-15", time: "10:00 ص", vehicle: "تويوتا كامري 2022", price: 180, status: "جديد" },
+  { id: "wb2", customerName: "خالد السعيد", customerPhone: "0559876543", service: "فحص شامل", date: "2026-02-15", time: "12:00 م", vehicle: "نيسان التيما 2021", price: 250, status: "مؤكد" },
+  { id: "wb3", customerName: "سعد العتيبي", customerPhone: "0552223344", service: "صيانة فرامل", date: "2026-02-16", time: "09:00 ص", vehicle: "هيونداي سوناتا 2020", price: 350, status: "قيد التنفيذ" },
+  { id: "wb4", customerName: "محمد الحربي", customerPhone: "0553334455", service: "تغيير زيت + فلتر", date: "2026-02-12", time: "03:00 م", vehicle: "كيا سبورتاج 2019", price: 180, status: "مكتمل" },
+  { id: "wb5", customerName: "عبدالله القحطاني", customerPhone: "0554445566", service: "فحص شامل", date: "2026-02-10", time: "11:00 ص", vehicle: "شيفروليه ماليبو 2018", price: 250, status: "مكتمل" },
+];
+
+// Session / role management (mock)
+export type UserRole = "customer" | "company" | "workshop";
+
+export type Session = {
+  role: UserRole;
+  name: string;
+  email: string;
+  entityId?: string; // id of the company/workshop the owner manages
+};

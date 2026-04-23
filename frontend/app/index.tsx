@@ -4,7 +4,6 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Wrench } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../src/theme/theme";
-
 export default function Splash() {
   const router = useRouter();
   return (
@@ -51,6 +50,23 @@ export default function Splash() {
           >
             <Text style={styles.guest}>متابعة كزائر ←</Text>
           </TouchableOpacity>
+
+          <View style={styles.roleRow}>
+            <TouchableOpacity
+              testID="splash-company-btn"
+              style={styles.roleBtn}
+              onPress={() => router.push("/auth/company-login")}
+            >
+              <Text style={styles.roleTxt}>🏢 حساب شركة</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="splash-workshop-btn"
+              style={styles.roleBtn}
+              onPress={() => router.push("/auth/workshop-login")}
+            >
+              <Text style={styles.roleTxt}>🔧 حساب ورشة</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -82,4 +98,7 @@ const styles = StyleSheet.create({
   secondaryBtn: { backgroundColor: colors.surface, height: 52, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
   secondaryTxt: { color: colors.textMain, fontSize: 16, fontWeight: "700" },
   guest: { color: colors.accent, fontSize: 14, fontWeight: "600" },
+  roleRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
+  roleBtn: { flex: 1, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceAlt },
+  roleTxt: { color: colors.textMain, fontSize: 12, fontWeight: "700" },
 });
