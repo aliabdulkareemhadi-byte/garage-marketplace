@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp, DollarSign, Phone, MessageCircle, CheckCircle2, Trophy, Share2, Bell, Wallet as WalletIcon } from "lucide-react-native";
+import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp, DollarSign, Phone, MessageCircle, CheckCircle2, Trophy, Share2, Bell, Wallet as WalletIcon, Megaphone } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { workshops, workshopStats } from "../../src/data/mockData";
@@ -204,6 +204,24 @@ export default function WorkshopProfile() {
             </View>
             <Text style={styles.servName}>الرصيد والمعاملات</Text>
             <Text style={styles.servPrice}>{wallet.balance.toLocaleString()} {wallet.currency}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Ads entry point */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>الإعلانات</Text>
+        </View>
+        <View style={styles.card}>
+          <TouchableOpacity
+            testID="open-ads-btn"
+            style={styles.servRow}
+            onPress={() => router.push("/workshop-dashboard/ads")}
+          >
+            <View style={[styles.servIcon, { backgroundColor: colors.accentSoft }]}>
+              <Megaphone size={14} color={colors.accent} />
+            </View>
+            <Text style={styles.servName}>إدارة الإعلانات والترويج</Text>
+            <Text style={styles.sectionAction}>فتح</Text>
           </TouchableOpacity>
         </View>
 

@@ -37,6 +37,8 @@ export default function WorkshopDashboardLayout() {
           <Tabs.Screen name="reminder-edit" options={{ href: null }} />
           {/* Wallet feature — hidden from tab bar, reachable via profile entry point */}
           <Tabs.Screen name="wallet" options={{ href: null }} />
+          {/* Internal Advertisements feature — hidden from tab bar, reachable via profile entry point */}
+          <Tabs.Screen name="ads" options={{ href: null }} />
         </Tabs>
       </RemindersProvider>
     </WalletProvider>
