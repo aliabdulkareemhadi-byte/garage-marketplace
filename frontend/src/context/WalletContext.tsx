@@ -2,6 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -40,10 +41,29 @@ function genId(prefix: string): string {
     .slice(2, 7)}`;
 }
 
+// Module-level state backup. Survives WalletProvider remounts (e.g. Expo
+// Router web static output remounts the root layout on every navigation).
+// This is a mock-only, in-memory substitute for a backend/store — no new
+// dependencies, no persistence layer.
+let _walletBackup: Wallet = initialWallet;
+let _txsBackup: WalletTransaction[] = sampleTransactions;
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [wallet, setWallet] = useState<Wallet>(initialWallet);
-  const [transactions, setTransactions] =
-    useState<WalletTransaction[]>(sampleTransactions);
+  // Module-level backup (see top of file) persists state across WalletProvider
+  // remounts (Expo Router web static output remounts the root layout on route
+  // change). We seed the React state from the backup so state survives nav.
+  const [wallet, setWallet] = useState<Wallet>(() => _walletBackup);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>(
+    () => _txsBackup
+  );
+
+  // Keep module-level backup in sync with React state.
+  useEffect(() => {
+    _walletBackup = wallet;
+  }, [wallet]);
+  useEffect(() => {
+    _txsBackup = transactions;
+  }, [transactions]);
 
   const requestTopUp = useCallback<WalletContextValue["requestTopUp"]>(
     (amount, note) => {
