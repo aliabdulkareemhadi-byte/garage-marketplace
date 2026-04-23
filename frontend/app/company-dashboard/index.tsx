@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Star, MapPin, Package, Building2, Edit3, LogOut, CheckCircle2, TrendingUp, ShoppingBag, Phone, MessageCircle, Clock, DollarSign, Trophy, Share2, Bell } from "lucide-react-native";
+import { Star, MapPin, Package, Building2, Edit3, LogOut, CheckCircle2, TrendingUp, ShoppingBag, Phone, MessageCircle, Clock, DollarSign, Trophy, Share2, Bell, Megaphone } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { companies, companyStats } from "../../src/data/mockData";
@@ -182,6 +182,24 @@ export default function CompanyProfile() {
           </View>
         </View>
 
+        {/* Ads entry point */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>الإعلانات</Text>
+        </View>
+        <View style={styles.card}>
+          <TouchableOpacity
+            testID="company-open-ads-btn"
+            style={styles.adsRow}
+            onPress={() => router.push("/company-dashboard/ads")}
+          >
+            <View style={styles.adsIcon}>
+              <Megaphone size={14} color={colors.accent} />
+            </View>
+            <Text style={styles.adsName}>إدارة الإعلانات والترويج</Text>
+            <Text style={styles.sectionAction}>فتح</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity testID="logout-btn" style={styles.logout} onPress={doLogout}>
           <LogOut size={18} color={colors.error} />
           <Text style={styles.logoutTxt}>تسجيل الخروج</Text>
@@ -292,4 +310,8 @@ const styles = StyleSheet.create({
 
   logout: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginHorizontal: spacing.lg, marginTop: spacing.lg, paddingVertical: spacing.md + 2, borderRadius: radius.md, borderWidth: 1, borderColor: "#FECACA", backgroundColor: "#FEF2F2" },
   logoutTxt: { color: colors.error, fontSize: 14, fontWeight: "700" },
+
+  adsRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
+  adsIcon: { width: 32, height: 32, borderRadius: radius.md, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
+  adsName: { flex: 1, fontSize: 13, color: colors.textMain, fontWeight: "700", textAlign: "right" },
 });

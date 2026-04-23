@@ -92,3 +92,50 @@ export const initialWorkshopAds: Ad[] = [
 ];
 
 export const AD_PLACEHOLDER_IMAGE = PLACEHOLDER;
+
+// Mock seed for company internal advertisements.
+// Additive only — mirrors workshop seed with advertiserType = "company".
+export const initialCompanyAds: Ad[] = [
+  {
+    id: "cad-1",
+    title: "خصم خاص على قطع الغيار الأصلية",
+    description: "تشكيلة واسعة من قطع الغيار الأصلية بأسعار منافسة.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=800&q=60",
+    advertiserType: "company",
+    startDate: "2026-02-01",
+    endDate: "2026-02-28",
+    isFeatured: true,
+    status: "active",
+    promotionPrice: AD_PRICE_FEATURED,
+    isPaid: true,
+  },
+  {
+    id: "cad-2",
+    title: "إطارات بأسعار الجملة",
+    description: "إطارات متنوعة من أشهر الماركات العالمية.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=800&q=60",
+    advertiserType: "company",
+    startDate: "2026-02-05",
+    endDate: "2026-03-05",
+    isFeatured: false,
+    status: "active",
+    promotionPrice: AD_PRICE_NORMAL,
+    isPaid: true,
+  },
+  {
+    id: "cad-3",
+    title: "بطاريات عالية الجودة",
+    description: "بطاريات بضمان طويل الأمد وأداء موثوق.",
+    imageUrl:
+      "https://images.unsplash.com/photo-1625047509168-a7026f36de04?w=800&q=60",
+    advertiserType: "company",
+    startDate: "2026-03-01",
+    endDate: "2026-03-20",
+    isFeatured: false,
+    status: "scheduled",
+    promotionPrice: AD_PRICE_NORMAL,
+    isPaid: false,
+  },
+];

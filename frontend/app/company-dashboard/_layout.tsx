@@ -29,6 +29,8 @@ export default function CompanyDashboardLayout() {
       <Tabs.Screen name="orders" options={{ title: "الطلبات", tabBarIcon: ({ color, size }) => <ShoppingBag size={size} color={color} /> }} />
       <Tabs.Screen name="offers" options={{ title: "العروض", tabBarIcon: ({ color, size }) => <Tag size={size} color={color} /> }} />
       <Tabs.Screen name="offer-edit" options={{ href: null }} />
+      {/* Internal Advertisements feature — hidden from tab bar, reachable via profile entry point */}
+      <Tabs.Screen name="ads" options={{ href: null }} />
     </Tabs>
   );
 }

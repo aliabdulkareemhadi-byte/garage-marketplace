@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { Star } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
-import { initialWorkshopAds } from "../data/adsMockData";
+import { initialWorkshopAds, initialCompanyAds } from "../data/adsMockData";
 import type { Ad } from "../types/ad";
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
 
 export default function AdsSection({ onPressAd }: Props) {
   const ads = useMemo(() => {
-    return initialWorkshopAds
+    return [...initialWorkshopAds, ...initialCompanyAds]
       .filter((a) => a.status === "active")
       .sort((a, b) => {
         if (a.isFeatured === b.isFeatured) return 0;
