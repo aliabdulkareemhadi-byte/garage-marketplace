@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch } from "react-native";
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronRight, Save, Tag, DollarSign, Package, FileText } from "lucide-react-native";
+import { ChevronRight, Save, Tag, DollarSign, Package, FileText, Plus, X, Star } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { products } from "../../src/data/mockData";
 
@@ -20,6 +20,23 @@ export default function ProductEdit() {
     description: existing?.description || "",
     inStock: existing?.inStock ?? true,
   });
+  const [images, setImages] = useState<string[]>(existing?.images || []);
+  const [coverIdx, setCoverIdx] = useState(0);
+
+  const addImage = () => {
+    // mock add: cycle through some placeholders
+    const pool = [
+      "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
+      "https://images.unsplash.com/photo-1636613112804-c5aebc1f4d8d?w=600",
+      "https://images.unsplash.com/photo-1611633235555-45e252fe48c8?w=600",
+      "https://images.unsplash.com/photo-1522598140461-ec9911e01c53?w=600",
+    ];
+    setImages((imgs) => [...imgs, pool[imgs.length % pool.length]]);
+  };
+  const removeImage = (i: number) => {
+    setImages((imgs) => imgs.filter((_, idx) => idx !== i));
+    if (coverIdx === i) setCoverIdx(0);
+  };
 
   const save = () => {
     router.back();
@@ -103,13 +120,47 @@ export default function ProductEdit() {
           </View>
 
           <View style={styles.imagesBox}>
-            <Text style={styles.imagesTitle}>صور المنتج</Text>
-            <View style={styles.imagesEmpty}>
-              <Text style={styles.imagesEmptyTxt}>لم يتم رفع صور بعد</Text>
-              <TouchableOpacity style={styles.uploadBtn}>
-                <Text style={styles.uploadTxt}>+ رفع صورة</Text>
-              </TouchableOpacity>
+            <View style={styles.imagesHead}>
+              <Text style={styles.imagesTitle}>صور المنتج</Text>
+              <Text style={styles.imagesCount}>{images.length}/8</Text>
             </View>
+            {images.length === 0 ? (
+              <View style={styles.imagesEmpty}>
+                <Text style={styles.imagesEmptyTxt}>لم يتم رفع صور بعد</Text>
+                <TouchableOpacity testID="pe-upload-btn" style={styles.uploadBtn} onPress={addImage}>
+                  <Plus size={14} color={colors.accent} />
+                  <Text style={styles.uploadTxt}>رفع صورة</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: 4 }}>
+                {images.map((uri, i) => (
+                  <View key={`${uri}-${i}`} style={styles.imgCell}>
+                    <Image source={{ uri }} style={styles.imgThumb} />
+                    {coverIdx === i && (
+                      <View style={styles.coverBadge}>
+                        <Star size={9} color="#fff" fill="#fff" />
+                        <Text style={styles.coverBadgeTxt}>الرئيسية</Text>
+                      </View>
+                    )}
+                    <TouchableOpacity testID={`remove-img-${i}`} style={styles.removeBtn} onPress={() => removeImage(i)}>
+                      <X size={12} color="#fff" />
+                    </TouchableOpacity>
+                    {coverIdx !== i && (
+                      <TouchableOpacity testID={`set-cover-${i}`} style={styles.setCoverBtn} onPress={() => setCoverIdx(i)}>
+                        <Text style={styles.setCoverTxt}>تعيين رئيسية</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                {images.length < 8 && (
+                  <TouchableOpacity testID="pe-add-img" style={styles.addImgCell} onPress={addImage}>
+                    <Plus size={22} color={colors.textMuted} />
+                    <Text style={styles.addImgTxt}>إضافة</Text>
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            )}
           </View>
         </ScrollView>
 
@@ -161,6 +212,12 @@ const styles = StyleSheet.create({
   imagesEmptyTxt: { color: colors.textMuted, fontSize: 12 },
   uploadBtn: { backgroundColor: colors.accentSoft, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md },
   uploadTxt: { color: colors.accent, fontSize: 13, fontWeight: "700" },
+  footer: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg },
+  saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.primary, height: 52, borderRadius: radius.md },
+  saveTxt: { color: "#fff", fontSize: 15, fontWeight: "700" },
+});
+ell: { width: 110, height: 110, borderRadius: radius.md, borderWidth: 1.5, borderStyle: "dashed", borderColor: colors.borderStrong, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center", gap: 4, marginEnd: spacing.sm },
+  addImgTxt: { fontSize: 11, color: colors.textMuted, fontWeight: "700" },
   footer: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg },
   saveBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.primary, height: 52, borderRadius: radius.md },
   saveTxt: { color: "#fff", fontSize: 15, fontWeight: "700" },

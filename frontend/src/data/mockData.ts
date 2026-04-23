@@ -302,3 +302,68 @@ export type Session = {
   email: string;
   entityId?: string; // id of the company/workshop the owner manages
 };
+
+// Company-side: orders, offers, sales stats
+export type CompanyOrderStatus = "جديد" | "مقبول" | "قيد التجهيز" | "مكتمل" | "ملغي";
+
+export type CompanyOrder = {
+  id: string;
+  customerName: string;
+  customerPhone: string;
+  city: string;
+  productId: string;
+  productTitle: string;
+  productImage: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  date: string;
+  paymentMethod: "دفع عند الاستلام" | "بطاقة" | "محفظة";
+  status: CompanyOrderStatus;
+};
+
+export const companyOrders: CompanyOrder[] = [
+  { id: "co1", customerName: "أحمد محمد", customerPhone: "0551234567", city: "الرياض", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", productImage: products[0].images[0], quantity: 2, unitPrice: 175, total: 350, date: "2026-02-14", paymentMethod: "بطاقة", status: "جديد" },
+  { id: "co2", customerName: "خالد السعيد", customerPhone: "0559876543", city: "جدة", productId: "p2", productTitle: "إطار ميشلان بريمير 225/45 R17", productImage: products[1].images[0], quantity: 4, unitPrice: 640, total: 2560, date: "2026-02-14", paymentMethod: "بطاقة", status: "جديد" },
+  { id: "co3", customerName: "سعد العتيبي", customerPhone: "0552223344", city: "الرياض", productId: "p3", productTitle: "فلتر هواء بوش أصلي", productImage: products[2].images[0], quantity: 1, unitPrice: 85, total: 85, date: "2026-02-13", paymentMethod: "دفع عند الاستلام", status: "مقبول" },
+  { id: "co4", customerName: "محمد الحربي", customerPhone: "0553334455", city: "الدمام", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", productImage: products[0].images[0], quantity: 3, unitPrice: 175, total: 525, date: "2026-02-13", paymentMethod: "محفظة", status: "قيد التجهيز" },
+  { id: "co5", customerName: "عبدالله القحطاني", customerPhone: "0554445566", city: "الرياض", productId: "p4", productTitle: "بطارية AC Delco 70 أمبير", productImage: products[3].images[0], quantity: 1, unitPrice: 320, total: 320, date: "2026-02-11", paymentMethod: "بطاقة", status: "مكتمل" },
+  { id: "co6", customerName: "فهد الدوسري", customerPhone: "0555556677", city: "جدة", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", productImage: products[0].images[0], quantity: 2, unitPrice: 175, total: 350, date: "2026-02-10", paymentMethod: "دفع عند الاستلام", status: "مكتمل" },
+  { id: "co7", customerName: "ناصر الشهراني", customerPhone: "0556667788", city: "الرياض", productId: "p3", productTitle: "فلتر هواء بوش أصلي", productImage: products[2].images[0], quantity: 2, unitPrice: 85, total: 170, date: "2026-02-08", paymentMethod: "بطاقة", status: "ملغي" },
+];
+
+export type CompanyOfferState = "نشط" | "منتهي" | "مجدول";
+
+export type CompanyOffer = {
+  id: string;
+  title: string;
+  productId?: string;
+  productTitle: string;
+  image: string;
+  discountPercent: number;
+  startDate: string;
+  endDate: string;
+  state: CompanyOfferState;
+  description: string;
+};
+
+export const companyOffers: CompanyOffer[] = [
+  { id: "of1", title: "خصم الشتاء على الزيوت", productId: "p1", productTitle: "زيت محرك شل هيلكس 5W-30", image: products[0].images[0], discountPercent: 20, startDate: "2026-02-01", endDate: "2026-02-28", state: "نشط", description: "خصم حصري على زيوت المحركات طوال فبراير." },
+  { id: "of2", title: "عرض الإطارات", productId: "p2", productTitle: "إطار ميشلان بريمير 225/45 R17", image: products[1].images[0], discountPercent: 15, startDate: "2026-02-10", endDate: "2026-02-20", state: "نشط", description: "وفّر 15% عند شراء 4 إطارات ميشلان." },
+  { id: "of3", title: "فلاتر بنصف السعر", productId: "p3", productTitle: "فلتر هواء بوش أصلي", image: products[2].images[0], discountPercent: 50, startDate: "2026-01-15", endDate: "2026-01-31", state: "منتهي", description: "عرض انتهى — خصم 50% على الفلاتر." },
+  { id: "of4", title: "عرض الربيع القادم", productId: "p4", productTitle: "بطارية AC Delco 70 أمبير", image: products[3].images[0], discountPercent: 10, startDate: "2026-03-01", endDate: "2026-03-15", state: "مجدول", description: "عرض مجدول لبداية شهر مارس." },
+];
+
+export const companyStats = {
+  totalProducts: products.length,
+  monthlyOrders: 48,
+  totalSales: 18450,
+  views: "3.2k",
+  bestSeller: {
+    productId: "p1",
+    title: "زيت محرك شل هيلكس 5W-30",
+    image: products[0].images[0],
+    sales: 124,
+    revenue: 21700,
+  },
+};
