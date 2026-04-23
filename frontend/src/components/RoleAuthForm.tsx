@@ -34,7 +34,7 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
     if (!isLogin) {
       if (!form.name.trim()) e.name = `يرجى إدخال اسم ال${roleLabel}`;
       if (!form.phone.trim()) e.phone = "يرجى إدخال رقم الجوال";
-      else if (!/^05\d{8}$/.test(form.phone.trim())) e.phone = "رقم جوال غير صحيح (05xxxxxxxx)";
+      else if (!/^(05\d{8}|07\d{9}|\+9647\d{9})$/.test(form.phone.trim())) e.phone = "رقم الجوال غير صحيح";
     }
     if (!form.email.trim()) e.email = "يرجى إدخال البريد الإلكتروني";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "صيغة بريد إلكتروني غير صحيحة";

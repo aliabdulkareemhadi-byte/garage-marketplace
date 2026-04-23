@@ -21,7 +21,7 @@ export default function Register() {
     if (!form.name.trim()) e.name = "يرجى إدخال الاسم";
     if (!form.email.trim()) e.email = "يرجى إدخال البريد الإلكتروني";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "صيغة بريد إلكتروني غير صحيحة";
-    if (form.phone.trim() && !/^05\d{8}$/.test(form.phone.trim())) e.phone = "رقم جوال غير صحيح (05xxxxxxxx)";
+    if (form.phone.trim() && !/^(05\d{8}|07\d{9}|\+9647\d{9})$/.test(form.phone.trim())) e.phone = "رقم الجوال غير صحيح";
     if (!form.pwd) e.pwd = "يرجى إدخال كلمة المرور";
     else if (form.pwd.length < 6) e.pwd = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
     setErrors(e);
