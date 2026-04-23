@@ -1,0 +1,48 @@
+{
+  "summary": "Retested admin wallet-requests approve flow (iteration 4). Bug STILL PRESENT: tapping any admin-approve-req-* button updates the request status badge to مقبول but the wallet balance strip stays at 1,500 ر.س. Rejected status also updates correctly. The useRef queue + useEffect drainer approach in /app/frontend/app/admin/wallet-requests.tsx does not credit the wallet balance.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "admin/wallet-requests.tsx (balanceStrip)",
+        "issue": "Balance stays 1,500 ر.س after approving req-1001 (expected 6,500), req-1003 (expected 16,500), and req-1004 (expected 66,500). Status badges update to مقبول but wallet.balance is never credited. Reject req-1002 behaves correctly (no balance change, badge becomes مرفوض).",
+        "testID": "admin-approve-req-1001 / admin-approve-req-1003 / admin-approve-req-1004",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Admin approve -> WalletContext credit",
+        "issue": "pendingApproveRef queue + drain useEffect does not actually result in WalletContext.approveTopUp crediting the balance, even though the status card UI reflects approved. No JS/console errors observed. Pending queue approach appears to either never drain or approveTopUp fails silently.",
+        "affected_testIDs": ["admin-approve-req-1001", "admin-approve-req-1003", "admin-approve-req-1004"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "The pendingApproveRef / drain-useEffect fix in /app/frontend/app/admin/wallet-requests.tsx does NOT credit the wallet balance. Retains same symptom as iteration 3.",
+    "Recommended fix: stop routing through requestTopUp+approveTopUp for admin mock approvals. Either (a) expose a direct credit helper from WalletContext (e.g. creditBalance) that performs a single setWallet(balance+amount) and writes an approved tx in one go, OR (b) call requestTopUp(), then inside the very next useEffect that fires when the tx appears, call approveTopUp AND also synchronously update a local trigger — but verify with console.log that approveTopUp's inner `transactions.find(id)` actually locates the tx and that setWallet fires.",
+    "Debug hypothesis to verify: add console.log('drain', id, !!tx, tx?.status) inside the useEffect and console.log inside WalletContext.approveTopUp to confirm whether it enters the success branch. If it does, the bug is elsewhere (e.g. wallet state update not propagating to this screen — but balanceStrip reads useWallet().wallet.balance which would re-render).",
+    "Simplest robust fix: add a new `creditWallet(amount, note)` action in WalletContext.tsx that appends an approved 'topup' transaction and increments wallet.balance in a single pair of setters, and call that directly from onApprove. This sidesteps the closure-timing issue entirely and is consistent with the existing deductBalance pattern.",
+    "Note the user's rule 'do not change wallet logic' — an additive helper (new method, no changes to existing methods) should be acceptable and is the cleanest path."
+  ],
+  "critical_code_review_comments": [
+    "/app/frontend/app/admin/wallet-requests.tsx useEffect drain pattern is fragile: it depends on approveTopUp's identity changing on every transactions change, which it does, but the whole trip requires two render cycles and is hard to reason about. A direct creditWallet helper is materially simpler and testable.",
+    "onApprove fires Alert.alert('تم قبول الطلب ...') BEFORE the balance is actually credited. If approve silently fails (as it does now), the user sees a success alert but no balance change — misleading UX."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only test)",
+    "frontend": "25% (1/4 — only reject behaves correctly; 3 approves all fail to credit balance)"
+  },
+  "seed_data_creation": "None — uses in-memory mock data (initialWallet=1,500 ر.س, 4 MOCK_REQUESTS).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview URL: https://mechanic-shop-ads.preview.emergentagent.com/admin/wallet-requests. Expected sequence: 1,500 -> approve 1001 (5k) -> 6,500 -> reject 1002 -> 6,500 -> approve 1003 (10k) -> 16,500 -> approve 1004 (50k) -> 66,500. Observed: balance never moves off 1,500 through all actions; only status badges change. No console/page errors. react-native-web Alert did not produce a browser dialog (no dialog events captured).",
+  "rca_of_issue": "Reproduction: open /admin/wallet-requests, tap admin-approve-req-1001. Expected balanceStrip becomes '6,500 ر.س'; actual stays '1,500 ر.س'. Status tag correctly becomes 'مقبول'. Same on 1003 and 1004. Reject 1002 works as expected. RCA hypothesis: the useRef queue + useEffect([transactions, approveTopUp]) drain mechanism intended to work around the stale-closure problem in WalletContext.approveTopUp is not actually crediting the wallet. Either (a) the effect fires but approveTopUp still doesn't find the tx (closure ordering across Provider useMemo chain), or (b) setWallet inside approveTopUp runs but the component's useWallet subscription doesn't pick it up (unlikely — context works). Mitigation: introduce an additive creditWallet(amount, note) on WalletContext that performs approved-tx append and balance increment in a single call; invoke it directly from admin onApprove. This removes all closure-timing dependence and is trivially verifiable."
+}

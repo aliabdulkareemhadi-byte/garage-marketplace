@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -91,23 +91,49 @@ function formatNumber(n: number): string {
 
 export default function AdminWalletRequests() {
   const router = useRouter();
-  const { wallet, requestTopUp, approveTopUp } = useWallet();
+  const { wallet, transactions, requestTopUp, approveTopUp } = useWallet();
 
   const [requests, setRequests] = useState<TopUpRequest[]>(MOCK_REQUESTS);
+
+  // Queue of pending wallet-tx ids awaiting approval. Needed because
+  // WalletContext.approveTopUp is memoized on `transactions`; calling it
+  // synchronously right after requestTopUp would read a stale closure and
+  // silently fail. We drain the queue from a useEffect that re-runs when
+  // `transactions` and `approveTopUp` refresh together.
+  const pendingApproveRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (pendingApproveRef.current.length === 0) return;
+    const next: string[] = [];
+    for (const id of pendingApproveRef.current) {
+      const tx = transactions.find((t) => t.id === id);
+      if (tx && tx.status === "pending") {
+        approveTopUp(id);
+      } else if (!tx) {
+        // Not yet present in state — keep waiting.
+        next.push(id);
+      }
+    }
+    pendingApproveRef.current = next;
+  }, [transactions, approveTopUp]);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   const onApprove = (req: TopUpRequest) => {
-    // Create a pending top-up in WalletContext then approve it, so that
-    // the wallet balance is actually credited through existing wallet logic.
+    // Create a pending top-up in WalletContext then queue it for approval
+    // so the wallet balance is actually credited through existing wallet logic.
     const topUp = requestTopUp(req.amount, `[admin] ${req.userId}: ${req.note}`);
     if (topUp.ok) {
-      approveTopUp(topUp.transaction.id);
+      pendingApproveRef.current.push(topUp.transaction.id);
     }
     setRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: "approved" } : r))
     );
-    Alert.alert("تم قبول الطلب", `تمت إضافة ${formatNumber(req.amount)} ر.س.`);
+    if (topUp.ok) {
+      Alert.alert("تم قبول الطلب", `تمت إضافة ${formatNumber(req.amount)} ر.س.`);
+    } else {
+      Alert.alert("تعذر قبول الطلب", topUp.reason);
+    }
   };
 
   const onReject = (req: TopUpRequest) => {
