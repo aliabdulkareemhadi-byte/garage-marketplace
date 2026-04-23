@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -19,8 +19,14 @@ import {
 } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useWallet } from "../../src/context/WalletContext";
+import {
+  listTopUpRequests,
+  updateTopUpRequestStatus,
+  type TopUpRequest as FsTopUpRequest,
+  type TopUpRequestStatus,
+} from "../../src/services/topUpRequests";
 
-type RequestStatus = "pending" | "approved" | "rejected";
+type RequestStatus = TopUpRequestStatus;
 
 type TopUpRequest = {
   id: string;
@@ -30,6 +36,7 @@ type TopUpRequest = {
   status: RequestStatus;
 };
 
+// Mock fallback — used only when Firestore is empty OR unreachable (preview pod).
 const MOCK_REQUESTS: TopUpRequest[] = [
   {
     id: "req-1001",
@@ -89,33 +96,57 @@ function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
 }
 
+function mapFsRequest(r: FsTopUpRequest): TopUpRequest {
+  return {
+    id: r.id,
+    userId: r.uid,
+    amount: r.amount,
+    note: r.note,
+    status: r.status,
+  };
+}
+
 export default function AdminWalletRequests() {
   const router = useRouter();
-  const { wallet, creditWallet } = useWallet();
+  const { wallet } = useWallet();
 
   const [requests, setRequests] = useState<TopUpRequest[]>(MOCK_REQUESTS);
+
+  // Load real requests from Firestore; fall back to mock if empty/unreachable.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const remote = await listTopUpRequests();
+        if (cancelled) return;
+        if (remote.length > 0) setRequests(remote.map(mapFsRequest));
+      } catch {
+        // Keep mock fallback.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
   const onApprove = (req: TopUpRequest) => {
-    // Atomically credit wallet via the additive creditWallet helper —
-    // this ensures balance is updated correctly without stale-closure issues.
-    const res = creditWallet(req.amount, `[admin] ${req.userId}: ${req.note}`);
-    if (!res.ok) {
-      Alert.alert("تعذر قبول الطلب", res.reason);
-      return;
-    }
+    // Per spec: approve updates status only — no balance logic.
     setRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: "approved" } : r))
     );
-    Alert.alert("تم قبول الطلب", `تمت إضافة ${formatNumber(req.amount)} ر.س.`);
+    // Best-effort Firestore sync.
+    updateTopUpRequestStatus(req.id, "approved").catch(() => {});
+    Alert.alert("تم قبول الطلب", `تم تحديث حالة الطلب إلى مقبول.`);
   };
 
   const onReject = (req: TopUpRequest) => {
     setRequests((prev) =>
       prev.map((r) => (r.id === req.id ? { ...r, status: "rejected" } : r))
     );
-    Alert.alert("تم رفض الطلب", "لم يتم إضافة الرصيد.");
+    updateTopUpRequestStatus(req.id, "rejected").catch(() => {});
+    Alert.alert("تم رفض الطلب", "تم تحديث حالة الطلب إلى مرفوض.");
   };
 
   return (

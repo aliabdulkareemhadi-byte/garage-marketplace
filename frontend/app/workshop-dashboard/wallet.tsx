@@ -5,6 +5,8 @@ import { useRouter } from "expo-router";
 import { ChevronRight, Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, XCircle, AlertTriangle } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useWallet } from "../../src/context/WalletContext";
+import { useAuth } from "../../src/context/AuthContext";
+import { createTopUpRequest } from "../../src/services/topUpRequests";
 import type { WalletTransaction, WalletTransactionStatus } from "../../src/types/wallet";
 
 const PACKAGES: number[] = [25000, 50000, 100000];
@@ -33,10 +35,16 @@ function formatDate(iso: string): string {
 export default function WalletScreen() {
   const router = useRouter();
   const { wallet, transactions, requestTopUp } = useWallet();
+  const { session } = useAuth();
 
   const doTopUp = (amount: number) => {
-    const res = requestTopUp(amount, `تعبئة باقة ${formatNumber(amount)} ${wallet.currency}`);
+    const note = `تعبئة باقة ${formatNumber(amount)} ${wallet.currency}`;
+    const res = requestTopUp(amount, note);
     if (res.ok) {
+      // Mirror request to Firestore (source of truth for admin). Best-effort —
+      // failure here does not affect the local pending transaction UX.
+      const uid = session?.uid || wallet.ownerId || "anonymous";
+      createTopUpRequest(uid, amount, note).catch(() => {});
       Alert.alert(
         "تم إرسال طلب التعبئة",
         `طلبك بقيمة ${formatNumber(amount)} ${wallet.currency} قيد المراجعة.`
