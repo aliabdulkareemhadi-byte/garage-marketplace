@@ -2,15 +2,17 @@ import React from "react";
 import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp, DollarSign, Phone, MessageCircle, CheckCircle2, Trophy, Share2, Bell } from "lucide-react-native";
+import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp, DollarSign, Phone, MessageCircle, CheckCircle2, Trophy, Share2, Bell, Wallet as WalletIcon } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { workshops, workshopStats } from "../../src/data/mockData";
+import { useWallet } from "../../src/context/WalletContext";
 import StatCard from "../../src/components/StatCard";
 
 export default function WorkshopProfile() {
   const router = useRouter();
   const { session, logout } = useAuth();
+  const { wallet } = useWallet();
   const ws = workshops.find((w) => w.id === session?.entityId) || workshops[0];
 
   const workingHours = [
@@ -184,6 +186,24 @@ export default function WorkshopProfile() {
             </View>
             <Text style={styles.servName}>إدارة تذكيرات العملاء</Text>
             <Text style={styles.sectionAction}>فتح</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Wallet entry point */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>المحفظة</Text>
+        </View>
+        <View style={styles.card}>
+          <TouchableOpacity
+            testID="open-wallet-btn"
+            style={styles.servRow}
+            onPress={() => router.push("/workshop-dashboard/wallet")}
+          >
+            <View style={[styles.servIcon, { backgroundColor: colors.accentSoft }]}>
+              <WalletIcon size={14} color={colors.accent} />
+            </View>
+            <Text style={styles.servName}>الرصيد والمعاملات</Text>
+            <Text style={styles.servPrice}>{wallet.balance.toLocaleString()} {wallet.currency}</Text>
           </TouchableOpacity>
         </View>
 
