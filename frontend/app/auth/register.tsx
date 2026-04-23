@@ -2,20 +2,50 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { User, Mail, Lock, Phone, ChevronRight, AlertCircle } from "lucide-react-native";
+import { User, Mail, Lock, Phone, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react-native";
 import { colors, spacing, radius } from "../../src/theme/theme";
+import { useAuth } from "../../src/context/AuthContext";
 
 export default function Register() {
   const router = useRouter();
+  const { register } = useAuth();
   const [form, setForm] = useState({ name: "", email: "", phone: "", pwd: "" });
   const [agree, setAgree] = useState(false);
-  const [errors] = useState<{ name?: string; email?: string; phone?: string; pwd?: string }>({});
-  const [topError] = useState<string>("");
-  const [loading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; phone?: string; pwd?: string }>({});
+  const [topError, setTopError] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
 
-  const submit = () => {
-    // Placeholder: real registration is handled elsewhere in the flow.
-    router.back();
+  const validate = () => {
+    const e: typeof errors = {};
+    if (!form.name.trim()) e.name = "يرجى إدخال الاسم";
+    if (!form.email.trim()) e.email = "يرجى إدخال البريد الإلكتروني";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "صيغة بريد إلكتروني غير صحيحة";
+    if (form.phone.trim() && !/^05\d{8}$/.test(form.phone.trim())) e.phone = "رقم جوال غير صحيح (05xxxxxxxx)";
+    if (!form.pwd) e.pwd = "يرجى إدخال كلمة المرور";
+    else if (form.pwd.length < 6) e.pwd = "كلمة المرور يجب أن تكون 6 أحرف على الأقل";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const submit = async () => {
+    setTopError("");
+    setNotice("");
+    if (!validate()) {
+      setTopError("يرجى تصحيح الأخطاء في النموذج");
+      return;
+    }
+    setLoading(true);
+    try {
+      await register("customer", form.email.trim(), form.pwd, form.name.trim());
+      setNotice(
+        "تم إنشاء الحساب. أرسلنا رابط التأكيد إلى بريدك الإلكتروني. يرجى تأكيد البريد ثم تسجيل الدخول."
+      );
+    } catch (err: any) {
+      setTopError(err?.message || "تعذّر إنشاء الحساب");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,12 +61,19 @@ export default function Register() {
             <Text style={styles.sub}>انضم إلينا واستمتع بأفضل خدمات السيارات</Text>
           </View>
 
-          {topError && (
+          {topError ? (
             <View style={styles.errBanner}>
               <AlertCircle size={16} color={colors.error} />
               <Text style={styles.errBannerTxt}>{topError}</Text>
             </View>
-          )}
+          ) : null}
+
+          {notice ? (
+            <View style={styles.okBanner} testID="register-verify-notice">
+              <CheckCircle2 size={16} color={colors.success} />
+              <Text style={styles.okBannerTxt}>{notice}</Text>
+            </View>
+          ) : null}
 
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
             <Field label="الاسم الكامل" icon={<User size={18} color={colors.textLight} />} value={form.name} onChangeText={(t: string) => setForm({ ...form, name: t })} placeholder="محمد أحمد" testID="register-name-input" error={errors.name} />
@@ -122,6 +159,8 @@ const styles = StyleSheet.create({
   errTxt: { color: colors.error, fontSize: 11, fontWeight: "600" },
   errBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
   errBannerTxt: { color: colors.error, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
+  okBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
+  okBannerTxt: { color: colors.success, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
   agreeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
   checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },

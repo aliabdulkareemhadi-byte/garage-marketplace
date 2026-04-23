@@ -59,14 +59,16 @@ export type NotificationItem = {
   type: "order" | "booking" | "promo" | "system";
 };
 
-// Session / role management (mock)
-export type UserRole = "customer" | "company" | "workshop";
+// Session / role management (backed by Firebase Auth)
+export type UserRole = "customer" | "company" | "workshop" | "admin";
 
 export type Session = {
   role: UserRole;
   name: string;
   email: string;
   entityId?: string; // id of the company/workshop the owner manages
+  uid?: string;      // firebase uid
+  emailVerified?: boolean;
 };
 
 // Bookings from the workshop owner's perspective
