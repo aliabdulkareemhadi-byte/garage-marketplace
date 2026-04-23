@@ -1,0 +1,46 @@
+{
+  "summary": "Tested /admin/wallet-requests page. Rendering, testIDs, status-badge transitions, and route isolation all pass. However, a CRITICAL bug was found: approving a request does NOT credit the wallet balance (balance remains at 1,500 ر.س even after approving req-1001 5,000 + req-1003 10,000). Root cause: stale closure in WalletContext.approveTopUp when called in the same event handler as requestTopUp.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminWalletRequests -> balance strip",
+        "issue": "Balance never updates after approve. Initial=1,500. After approving req-1001 (5000) expected 6,500 — still shows 1,500. After approving req-1003 (10000) expected 16,500 — still shows 1,500. Status badges flip to 'مقبول' correctly and buttons disappear, but wallet.balance in the strip is unchanged.",
+        "testID": "admin-approve-req-1001, admin-approve-req-1003, balance strip",
+        "priority": "CRITICAL"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "admin approve -> WalletContext.requestTopUp + approveTopUp",
+        "issue": "In app/admin/wallet-requests.tsx onApprove, requestTopUp(amount) enqueues a new pending tx via setTransactions; immediately after, approveTopUp(tx.id) is called. But approveTopUp is memoized with useCallback([transactions]) and reads the CLOSURE 'transactions' array which does NOT yet contain the newly-created tx (React state updates are async/batched). Therefore transactions.find(t => t.id === id) returns undefined, approveTopUp returns { ok:false, reason:'المعاملة غير موجودة' }, and the setWallet (balance += amount) branch never runs. The admin UI still optimistically flips the local requests[].status to 'approved' and shows the success Alert, masking the failure.",
+        "affected_testIDs": ["admin-approve-req-1001", "admin-approve-req-1003", "admin-approve-req-1004"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix WalletContext.approveTopUp (and rejectTopUp for consistency) so it can operate on a transaction that was just created in the same render cycle. Recommended: refactor to use functional setState, e.g.:\n\n  const approveTopUp = useCallback((id) => {\n    let found;\n    setTransactions(prev => {\n      found = prev.find(t => t.id === id);\n      if (!found || found.type !== 'topup' || found.status !== 'pending') return prev;\n      return prev.map(t => t.id === id ? { ...t, status: 'approved', updatedAt: nowIso() } : t);\n    });\n    if (!found) return { ok: false, reason: 'المعاملة غير موجودة' };\n    setWallet(prev => ({ ...prev, balance: prev.balance + found.amount, updatedAt: nowIso() }));\n    return { ok: true, transaction: { ...found, status: 'approved' } };\n  }, []);\n\nThis removes the dependency on the stale `transactions` closure.",
+    "Alternative (simpler): add a dedicated admin helper like `creditBalance(amount, note)` in WalletContext that uses setWallet(prev => ...) and setTransactions(prev => ...) atomically. Then onApprove only needs to call creditBalance(req.amount, ...).",
+    "After the fix, re-run the same flow: open /admin/wallet-requests, approve req-1001 -> balance should become 6,500; reject req-1002 -> balance stays 6,500; approve req-1003 -> balance should become 16,500."
+  ],
+  "critical_code_review_comments": [
+    "onApprove in admin/wallet-requests.tsx silently swallows the failure of approveTopUp (no check on its return value). Even after the WalletContext fix, it would be safer to branch on the ok flag and only show the success Alert when wallet credit actually happened.",
+    "rejectTopUp has the same stale-closure risk but is not currently exercised from onReject (the admin UI only mutates local requests[]), so no user-visible bug today — but fix for symmetry."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only testing requested)",
+    "frontend": "~80% (rendering, testIDs, reject flow, route isolation, regression of existing screens all PASS; approve-credits-balance FAILS)"
+  },
+  "seed_data_creation": "None. All data is local mock in admin/wallet-requests.tsx and WalletContext seed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Preview URL: https://mechanic-shop-ads.preview.emergentagent.com/admin/wallet-requests . Initial balance 1,500 ر.س. Expected after approve(5000) -> 6,500; after reject -> unchanged; after approve(10000) -> 16,500. Verify the balance strip text (not just status badges). Also regression-check /workshop-dashboard/ads and /(tabs)/home so navigation isn't accidentally coupled.",
+  "rca_of_issue": "BUG: Admin approve does not credit wallet balance. REPRODUCTION: Open /admin/wallet-requests, tap testID=admin-approve-req-1001; observe status badge flips to 'مقبول' and success Alert shows, but the 'الرصيد الحالي' strip still says 1,500 ر.س. ROOT CAUSE: app/admin/wallet-requests.tsx:onApprove calls requestTopUp() then approveTopUp() synchronously. requestTopUp enqueues a new pending transaction via setTransactions (async). approveTopUp is a useCallback with dependency [transactions] and reads that (stale) transactions array; since the newly-created tx is not yet in it, `existing` is undefined and approveTopUp returns {ok:false} without hitting setWallet. Meanwhile onApprove unconditionally sets local status='approved' and Alerts success, hiding the failure. MITIGATION: Refactor WalletContext.approveTopUp/rejectTopUp to use functional setState (setTransactions(prev => ...)) so they always see the latest transactions list; capture the matched transaction inside the updater and then setWallet functionally. Alternatively add an atomic `creditBalance(amount, note)` helper and use it from the admin page."
+}

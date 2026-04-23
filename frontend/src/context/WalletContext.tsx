@@ -23,6 +23,8 @@ type WalletContextValue = {
   rejectTopUp: (id: string) => WalletActionResult;
   /** Deducts from the wallet. Creates a completed deduct transaction or fails if insufficient. */
   deductBalance: (amount: number, note?: string) => WalletActionResult;
+  /** Atomically credits the wallet and creates an approved topup transaction. Additive helper for admin-side crediting. */
+  creditWallet: (amount: number, note?: string) => WalletActionResult;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -155,6 +157,32 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     [wallet.balance, wallet.id]
   );
 
+  const creditWallet = useCallback<WalletContextValue["creditWallet"]>(
+    (amount, note) => {
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return { ok: false, reason: "المبلغ غير صالح" };
+      }
+      const tx: WalletTransaction = {
+        id: genId("tx"),
+        walletId: wallet.id,
+        type: "topup",
+        amount,
+        status: "approved",
+        note,
+        createdAt: nowIso(),
+        updatedAt: nowIso(),
+      };
+      setTransactions((prev) => [tx, ...prev]);
+      setWallet((prev) => ({
+        ...prev,
+        balance: prev.balance + amount,
+        updatedAt: nowIso(),
+      }));
+      return { ok: true, transaction: tx };
+    },
+    [wallet.id]
+  );
+
   const value = useMemo<WalletContextValue>(
     () => ({
       wallet,
@@ -163,8 +191,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       approveTopUp,
       rejectTopUp,
       deductBalance,
+      creditWallet,
     }),
-    [wallet, transactions, requestTopUp, approveTopUp, rejectTopUp, deductBalance]
+    [wallet, transactions, requestTopUp, approveTopUp, rejectTopUp, deductBalance, creditWallet]
   );
 
   return (
