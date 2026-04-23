@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Calendar, Clock, Car, Phone, User, Filter } from "lucide-react-native";
+import { Calendar, Clock, Car, Phone, User } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { workshopBookings, type WorkshopBooking } from "../../src/data/mockData";
 import EmptyState from "../../src/components/EmptyState";
@@ -14,41 +14,62 @@ const statusColors: Record<WorkshopBooking["status"], { bg: string; fg: string }
   "ملغي": { bg: "#FEE2E2", fg: "#EF4444" },
 };
 
-const filters: ("الكل" | WorkshopBooking["status"])[] = ["الكل", "جديد", "مؤكد", "قيد التنفيذ", "مكتمل", "ملغي"];
+type Tab = "الكل" | WorkshopBooking["status"];
+const tabs: Tab[] = ["الكل", "جديد", "مؤكد", "قيد التنفيذ", "مكتمل", "ملغي"];
 
 export default function WorkshopBookingsScreen() {
-  const [filter, setFilter] = useState<string>("الكل");
-  const [items, setItems] = useState(workshopBookings);
+  const [tab, setTab] = useState<Tab>("جديد");
+  const [items, setItems] = useState<WorkshopBooking[]>(workshopBookings);
 
-  const list = filter === "الكل" ? items : items.filter((b) => b.status === filter);
+  const counts = {
+    "جديد": items.filter((b) => b.status === "جديد").length,
+    "مؤكد": items.filter((b) => b.status === "مؤكد").length,
+    "قيد التنفيذ": items.filter((b) => b.status === "قيد التنفيذ").length,
+    "مكتمل": items.filter((b) => b.status === "مكتمل").length,
+    "ملغي": items.filter((b) => b.status === "ملغي").length,
+  };
 
-  const confirm = (id: string) => setItems((l) => l.map((b) => (b.id === id ? { ...b, status: "مؤكد" } : b)));
-  const complete = (id: string) => setItems((l) => l.map((b) => (b.id === id ? { ...b, status: "مكتمل" } : b)));
-  const cancel = (id: string) => setItems((l) => l.map((b) => (b.id === id ? { ...b, status: "ملغي" } : b)));
+  const list = tab === "الكل" ? items : items.filter((b) => b.status === tab);
+
+  const updateStatus = (id: string, status: WorkshopBooking["status"]) => {
+    setItems((l) => l.map((b) => (b.id === id ? { ...b, status } : b)));
+  };
+  const reject = (id: string) => {
+    Alert.alert("رفض الحجز", "هل أنت متأكد من رفض هذا الحجز؟", [
+      { text: "إلغاء", style: "cancel" },
+      { text: "رفض", style: "destructive", onPress: () => updateStatus(id, "ملغي") },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>الحجوزات</Text>
-          <Text style={styles.sub}>{items.length} حجز إجمالاً</Text>
-        </View>
-        <View style={styles.filterIcon}>
-          <Filter size={18} color={colors.textMain} />
+          <Text style={styles.sub}>{items.length} حجز · {counts["جديد"]} جديد</Text>
         </View>
       </View>
 
+      <View style={styles.statsRow}>
+        <StatMini value={counts["جديد"]} label="جديد" color={colors.accent} />
+        <StatMini value={counts["قيد التنفيذ"]} label="قيد التنفيذ" color={colors.warning} />
+        <StatMini value={counts["مكتمل"]} label="مكتمل" color={colors.success} />
+      </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        {filters.map((f) => (
-          <TouchableOpacity
-            key={f}
-            testID={`chip-${f}`}
-            onPress={() => setFilter(f)}
-            style={[styles.chip, filter === f && styles.chipActive]}
-          >
-            <Text style={[styles.chipTxt, filter === f && styles.chipTxtActive]}>{f}</Text>
-          </TouchableOpacity>
-        ))}
+        {tabs.map((t) => {
+          const count = t === "الكل" ? items.length : counts[t];
+          return (
+            <TouchableOpacity key={t} testID={`tab-${t}`} onPress={() => setTab(t)} style={[styles.chip, tab === t && styles.chipActive]}>
+              <Text style={[styles.chipTxt, tab === t && styles.chipTxtActive]}>{t}</Text>
+              {count > 0 && (
+                <View style={[styles.chipBadge, tab === t && { backgroundColor: "rgba(255,255,255,0.25)" }]}>
+                  <Text style={[styles.chipBadgeTxt, tab === t && { color: "#fff" }]}>{count}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <FlatList
@@ -59,8 +80,8 @@ export default function WorkshopBookingsScreen() {
         ListEmptyComponent={
           <EmptyState
             icon={<Calendar size={40} color={colors.textLight} />}
-            title={filter === "الكل" ? "لا توجد حجوزات" : `لا توجد حجوزات ${filter}`}
-            description="ستظهر الحجوزات هنا فور وصولها"
+            title={`لا توجد حجوزات ${tab === "الكل" ? "" : tab}`}
+            description="ستظهر الحجوزات هنا فور وصولها من العملاء"
             testID="empty-bookings"
           />
         }
@@ -68,41 +89,56 @@ export default function WorkshopBookingsScreen() {
           const sc = statusColors[item.status];
           return (
             <View style={styles.card} testID={`booking-${item.id}`}>
-              <View style={styles.topRow}>
-                <Text style={styles.service}>{item.service}</Text>
+              <View style={styles.cardTop}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.service}>{item.service}</Text>
+                  <View style={styles.dateRow}>
+                    <Calendar size={11} color={colors.textLight} />
+                    <Text style={styles.dateTxt}>{item.date}</Text>
+                    <View style={styles.dotSep} />
+                    <Clock size={11} color={colors.textLight} />
+                    <Text style={styles.dateTxt}>{item.time}</Text>
+                  </View>
+                </View>
                 <View style={[styles.statusTag, { backgroundColor: sc.bg }]}>
                   <Text style={[styles.statusTxt, { color: sc.fg }]}>{item.status}</Text>
                 </View>
               </View>
 
-              <View style={styles.gridRow}>
-                <MetaLine icon={<User size={13} color={colors.textMuted} />} value={item.customerName} />
-                <MetaLine icon={<Phone size={13} color={colors.textMuted} />} value={item.customerPhone} />
-              </View>
-              <MetaLine icon={<Car size={13} color={colors.textMuted} />} value={item.vehicle} />
-              <View style={styles.gridRow}>
-                <MetaLine icon={<Calendar size={13} color={colors.textMuted} />} value={item.date} />
-                <MetaLine icon={<Clock size={13} color={colors.textMuted} />} value={item.time} />
+              <View style={styles.divider} />
+
+              <View style={styles.customerGrid}>
+                <Info icon={<User size={12} color={colors.textMuted} />} value={item.customerName} />
+                <Info icon={<Phone size={12} color={colors.textMuted} />} value={item.customerPhone} />
+                <Info icon={<Car size={12} color={colors.textMuted} />} value={item.vehicle} full />
               </View>
 
               <View style={styles.divider} />
 
               <View style={styles.bottom}>
-                <Text style={styles.price}>{item.price} ر.س</Text>
+                <View>
+                  <Text style={styles.totalLabel}>السعر</Text>
+                  <Text style={styles.totalValue}>{item.price.toLocaleString()} ر.س</Text>
+                </View>
                 <View style={styles.actions}>
                   {item.status === "جديد" && (
                     <>
-                      <TouchableOpacity testID={`confirm-${item.id}`} style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => confirm(item.id)}>
-                        <Text style={styles.actionTxt}>قبول</Text>
+                      <TouchableOpacity testID={`reject-${item.id}`} style={[styles.actBtn, { backgroundColor: "#FEE2E2" }]} onPress={() => reject(item.id)}>
+                        <Text style={[styles.actTxt, { color: colors.error }]}>رفض</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity testID={`cancel-${item.id}`} style={[styles.actionBtn, { backgroundColor: "#FEE2E2" }]} onPress={() => cancel(item.id)}>
-                        <Text style={[styles.actionTxt, { color: colors.error }]}>رفض</Text>
+                      <TouchableOpacity testID={`accept-${item.id}`} style={[styles.actBtn, { backgroundColor: colors.primary }]} onPress={() => updateStatus(item.id, "مؤكد")}>
+                        <Text style={styles.actTxt}>قبول</Text>
                       </TouchableOpacity>
                     </>
                   )}
-                  {(item.status === "مؤكد" || item.status === "قيد التنفيذ") && (
-                    <TouchableOpacity testID={`complete-${item.id}`} style={[styles.actionBtn, { backgroundColor: colors.success }]} onPress={() => complete(item.id)}>
-                      <Text style={styles.actionTxt}>إنهاء</Text>
+                  {item.status === "مؤكد" && (
+                    <TouchableOpacity testID={`start-${item.id}`} style={[styles.actBtn, { backgroundColor: colors.warning }]} onPress={() => updateStatus(item.id, "قيد التنفيذ")}>
+                      <Text style={styles.actTxt}>بدء</Text>
+                    </TouchableOpacity>
+                  )}
+                  {item.status === "قيد التنفيذ" && (
+                    <TouchableOpacity testID={`complete-${item.id}`} style={[styles.actBtn, { backgroundColor: colors.success }]} onPress={() => updateStatus(item.id, "مكتمل")}>
+                      <Text style={styles.actTxt}>إنهاء</Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -115,41 +151,66 @@ export default function WorkshopBookingsScreen() {
   );
 }
 
-function MetaLine({ icon, value }: any) {
+function StatMini({ value, label, color }: any) {
   return (
-    <View style={styles.metaLine}>
+    <View style={styles.statMini}>
+      <View style={[styles.statDot, { backgroundColor: color }]} />
+      <View>
+        <Text style={styles.statVal}>{value}</Text>
+        <Text style={styles.statLbl}>{label}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Info({ icon, value, full }: any) {
+  return (
+    <View style={[styles.infoCell, full && { width: "100%" }]}>
       {icon}
-      <Text style={styles.metaVal} numberOfLines={1}>{value}</Text>
+      <Text style={styles.infoTxt} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg },
+  header: { flexDirection: "row", alignItems: "center", padding: spacing.lg, gap: spacing.md },
   title: { ...typography.h1, textAlign: "right" },
-  sub: { fontSize: 12, color: colors.textMuted, textAlign: "right" },
-  filterIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  sub: { fontSize: 12, color: colors.textMuted, textAlign: "right", marginTop: 2 },
+
+  statsRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+  statMini: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: spacing.sm + 2 },
+  statDot: { width: 6, height: 24, borderRadius: 3 },
+  statVal: { fontSize: 16, fontWeight: "800", color: colors.textMain },
+  statLbl: { fontSize: 10, color: colors.textMuted, fontWeight: "600" },
+
   chips: { paddingHorizontal: spacing.lg, gap: spacing.sm, flexDirection: "row", paddingBottom: spacing.md },
-  chip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginEnd: spacing.sm },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginEnd: spacing.sm },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTxt: { fontSize: 12, color: colors.textMuted, fontWeight: "600" },
+  chipTxt: { fontSize: 12, color: colors.textMuted, fontWeight: "700" },
   chipTxtActive: { color: "#fff" },
+  chipBadge: { minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.accentSoft, alignItems: "center", justifyContent: "center" },
+  chipBadgeTxt: { fontSize: 10, fontWeight: "800", color: colors.accent },
+
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
-  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  service: { fontSize: 15, fontWeight: "700", color: colors.textMain, flex: 1, textAlign: "right" },
+  cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm },
+  service: { fontSize: 15, fontWeight: "800", color: colors.textMain, textAlign: "right" },
+  dateRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  dateTxt: { fontSize: 11, color: colors.textLight, fontWeight: "600" },
+  dotSep: { width: 3, height: 3, borderRadius: 2, backgroundColor: colors.textLight, marginHorizontal: 2 },
   statusTag: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },
-  statusTxt: { fontSize: 11, fontWeight: "700" },
-  gridRow: { flexDirection: "row", gap: spacing.md },
-  metaLine: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
-  metaVal: { fontSize: 12, color: colors.textMain, fontWeight: "600", flex: 1 },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
-  bottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  price: { fontSize: 16, fontWeight: "800", color: colors.textMain },
+  statusTxt: { fontSize: 11, fontWeight: "800" },
+
+  divider: { height: 1, backgroundColor: colors.border },
+  customerGrid: { flexDirection: "row", flexWrap: "wrap" },
+  infoCell: { width: "50%", flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 },
+  infoTxt: { fontSize: 11, color: colors.textMain, fontWeight: "600", flex: 1 },
+
+  bottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  totalLabel: { fontSize: 11, color: colors.textMuted, textAlign: "right" },
+  totalValue: { fontSize: 17, fontWeight: "800", color: colors.textMain, textAlign: "right" },
   actions: { flexDirection: "row", gap: spacing.sm },
-  actionBtn: { paddingHorizontal: spacing.md, height: 36, borderRadius: radius.sm, alignItems: "center", justifyContent: "center" },
-  actionTxt: { color: "#fff", fontSize: 12, fontWeight: "700" },
-  empty: { alignItems: "center", paddingVertical: 80, gap: spacing.md },
-  emptyTxt: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
+  actBtn: { paddingHorizontal: spacing.md, height: 36, borderRadius: radius.md, alignItems: "center", justifyContent: "center", minWidth: 72 },
+  actTxt: { color: "#fff", fontSize: 12, fontWeight: "800" },
 });

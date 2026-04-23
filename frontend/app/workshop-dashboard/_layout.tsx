@@ -1,7 +1,16 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { User, Wrench, Plus, Calendar } from "lucide-react-native";
+import { User, Wrench, Plus, Calendar, Tag } from "lucide-react-native";
+import { View, StyleSheet } from "react-native";
 import { colors } from "../../src/theme/theme";
+
+function AddTabIcon() {
+  return (
+    <View style={styles.addWrap}>
+      <Plus size={22} color="#fff" />
+    </View>
+  );
+}
 
 export default function WorkshopDashboardLayout() {
   return (
@@ -10,14 +19,19 @@ export default function WorkshopDashboardLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textLight,
-        tabBarStyle: { borderTopColor: colors.border, backgroundColor: colors.surface, height: 64, paddingTop: 8, paddingBottom: 10 },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarStyle: { borderTopColor: colors.border, backgroundColor: colors.surface, height: 66, paddingTop: 8, paddingBottom: 10 },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: "700" },
       }}
     >
       <Tabs.Screen name="index" options={{ title: "الملف", tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }} />
       <Tabs.Screen name="services" options={{ title: "الخدمات", tabBarIcon: ({ color, size }) => <Wrench size={size} color={color} /> }} />
-      <Tabs.Screen name="service-edit" options={{ title: "إضافة", tabBarIcon: ({ color, size }) => <Plus size={size} color={color} /> }} />
+      <Tabs.Screen name="service-edit" options={{ title: "إضافة", tabBarIcon: () => <AddTabIcon /> }} />
       <Tabs.Screen name="bookings" options={{ title: "الحجوزات", tabBarIcon: ({ color, size }) => <Calendar size={size} color={color} /> }} />
+      <Tabs.Screen name="offers" options={{ title: "العروض", tabBarIcon: ({ color, size }) => <Tag size={size} color={color} /> }} />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  addWrap: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center", marginTop: -14, borderWidth: 3, borderColor: colors.surface },
+});

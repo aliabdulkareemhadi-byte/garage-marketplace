@@ -367,3 +367,36 @@ export const companyStats = {
     revenue: 21700,
   },
 };
+
+// Workshop stats (mock)
+export const workshopStats = {
+  totalBookings: workshopBookings.length + 12,
+  monthlyBookings: workshopBookings.length,
+  revenue: workshopBookings.filter((b) => b.status === "مكتمل").reduce((s, b) => s + b.price, 0) + 4200,
+  activeServices: 3,
+  rating: 4.7,
+  reviews: 320,
+  topService: {
+    name: "تغيير زيت + فلتر",
+    count: 42,
+    revenue: 7560,
+  },
+};
+
+// Workshop offers (mock)
+export type WorkshopOfferState = "نشط" | "منتهي" | "مجدول";
+export type WorkshopOffer = {
+  id: string;
+  title: string;
+  serviceName: string;
+  discountPercent: number;
+  startDate: string;
+  endDate: string;
+  state: WorkshopOfferState;
+  description: string;
+};
+export const workshopOffers: WorkshopOffer[] = [
+  { id: "wof1", title: "خصم تغيير الزيت", serviceName: "تغيير زيت + فلتر", discountPercent: 15, startDate: "2026-02-01", endDate: "2026-02-28", state: "نشط", description: "خصم 15% على خدمة تغيير الزيت طوال فبراير." },
+  { id: "wof2", title: "الفحص الشامل المجاني", serviceName: "فحص شامل", discountPercent: 50, startDate: "2026-02-10", endDate: "2026-02-20", state: "نشط", description: "فحص شامل بنصف السعر لفترة محدودة." },
+  { id: "wof3", title: "عرض الربيع", serviceName: "صيانة فرامل", discountPercent: 20, startDate: "2026-03-01", endDate: "2026-03-15", state: "مجدول", description: "خصم 20% قادم في بداية مارس." },
+];
