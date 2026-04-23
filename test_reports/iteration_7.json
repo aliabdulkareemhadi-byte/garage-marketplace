@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 7 — Module-level _walletBackup/_txsBackup VERIFIED WORKING for state persistence across WalletProvider remounts. 6/7 wallet scenarios pass. The module-scoped backup (outside React tree) successfully survives the root _layout remount that Expo Router web static output forces on every navigation. Admin approvals now correctly propagate to the workshop wallet screen, and the admin strip keeps the latest balance after cross-route navigation. Only the promote-ad-3 flow (Step 7) fails — but that failure is UNRELATED to the fix under test: React Native's Alert.alert with multiple buttons is a no-op on react-native-web, so the 'تأكيد' confirm button never fires and deductBalance() never runs. No browser confirm/alert dialog is triggered (page.on('dialog') caught 0 events) and no in-DOM modal renders. Regression checks pass: customer /home AdsSection renders 8 ad-testIDs with 'ممول' labels; workshop-dashboard profile, offers, reminders all load; tab bar unchanged.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "workshop-dashboard/ads.tsx promote() flow",
+        "issue": "Alert.alert with a 2-button (إلغاء/تأكيد) confirmation is a no-op on react-native-web — neither a native browser confirm() dialog nor an in-DOM modal appears. As a result, clicking promote-ad-3 does nothing visible: balance stays at 56,500 and ad-3 remains 'غير مُروَّج'. Same risk for the 'تم الترويج مسبقاً' / 'الرصيد غير كافٍ' / 'بيانات ناقصة' alerts. Not a regression from iteration 7 but blocks the final promote scenario in the reviewer's matrix. Recommended: replace Alert.alert with a custom in-app Modal/Dialog component (already used elsewhere in the app) OR Platform.select({ web: () => window.confirm(...), default: Alert.alert }).",
+        "testID": "promote-ad-3",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {
+        "component": "Alert.alert cross-screen usage (ads.tsx lines 114, 118, 128, 138, 326, 330, 334, 359)",
+        "issue": "react-native-web does not polyfill Alert.alert button callbacks; all multi-button confirmations silently fail on the web preview. Single-button alerts also don't display. Users on web cannot promote ads or see validation errors for ad creation."
+      }
+    ]
+  },
+  "test_report_links": ["Playwright automation logs 2026-04-23 21:14–21:17 UTC"],
+  "action_items": [
+    "PRIMARY GOAL ACHIEVED — the module-level backup fix in WalletContext.tsx correctly solves state persistence across WalletProvider remounts. No further action needed on wallet state sharing.",
+    "Fix Alert.alert usage in /app/frontend/app/workshop-dashboard/ads.tsx (promote, insufficient-balance, already-promoted, ad-creation validation, delete) so the flow completes on react-native-web. Options: (a) custom Modal component (best UX), (b) Platform.select with window.confirm on web. This is a pre-existing RN-Web compatibility bug, not introduced by iteration 7.",
+    "After the Alert fix, re-run step 7 only: approve req-1001 (6,500) + req-1004 (56,500) → /workshop-dashboard/ads → promote-ad-3 → expect 31,500 and ad-3 shows مُروَّج."
+  ],
+  "critical_code_review_comments": [
+    "src/context/WalletContext.tsx iteration 7 fix is clean and minimal: 2 module-level lets + lazy useState initializer + 2 sync useEffects. No new dependencies. Correctly functional, no stale-closure risk (setState updater form used throughout).",
+    "Edge case (acceptable for mock): _walletBackup is shared across all WalletProvider instances and never reset on full page reload — but since it is initialized from initialWallet at module load, a full browser refresh resets it, which matches the mock-only spec. OK.",
+    "Suggestion (non-blocking): for completeness, a dev-only console.warn on double WalletProvider mount could be added, but not necessary now.",
+    "ads.tsx: Alert.alert is the only pain point on web; otherwise the screen correctly reads wallet.balance from useWallet() and now displays the cross-route persisted 56,500."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend-only)",
+    "frontend": "86% wallet matrix (6/7 scenarios pass); 100% regression (home AdsSection, workshop profile, offers, reminders, tab bar all OK). The only failing scenario (promote-ad-3) is an Alert.alert-on-web bug, orthogonal to the iteration-7 fix."
+  },
+  "seed_data_creation": "None — used existing mock data (initialWallet=1500, req-1001/1004).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 7 module-level backup works. Verification method: Playwright + client-side nav via history.pushState('/route') + window.dispatchEvent(new PopStateEvent('popstate')) preserves the JS heap (module vars) even though React tree remounts. Verified sequence: /workshop-dashboard/wallet (1,500) → /admin/wallet-requests strip 1,500 → approve req-1001 → admin strip 6,500 → back to /workshop-dashboard/wallet shows 6,500 + [admin] tx note → approve req-1004 → 56,500 → /workshop-dashboard/ads strip 56,500. Only remaining failure is promote-ad-3 because Alert.alert confirm is a no-op on RN-Web. Once main agent fixes Alert.alert (custom Modal or window.confirm on web), step 7 should also pass.",
+  "rca_of_issue": "Step-7 RCA: React Native Web's Alert implementation does NOT invoke button onPress callbacks for multi-button alerts (and often renders nothing). In ads.tsx:118, promote() calls Alert.alert('تأكيد الترويج', ..., [cancel, {text:'تأكيد', onPress: deductBalance+setAds}]). On the web preview: no browser confirm() fires (page.on('dialog') = []), no modal renders, so the 'تأكيد' onPress never runs → deductBalance() never called → balance stays 56,500 and ad-3 stays 'غير مُروَّج'. This is a react-native-web limitation, NOT a WalletContext bug. Mitigation: swap Alert.alert for a custom in-app Modal (preferred UX) or Platform.select to use window.confirm on web."
+}
