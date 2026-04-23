@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar, Clock, Car, Phone, User, Filter } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { workshopBookings, type WorkshopBooking } from "../../src/data/mockData";
+import EmptyState from "../../src/components/EmptyState";
 
 const statusColors: Record<WorkshopBooking["status"], { bg: string; fg: string }> = {
   "جديد": { bg: "#E6F0FF", fg: "#0066FF" },
@@ -56,10 +57,12 @@ export default function WorkshopBookingsScreen() {
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Calendar size={40} color={colors.textLight} />
-            <Text style={styles.emptyTxt}>لا توجد حجوزات</Text>
-          </View>
+          <EmptyState
+            icon={<Calendar size={40} color={colors.textLight} />}
+            title={filter === "الكل" ? "لا توجد حجوزات" : `لا توجد حجوزات ${filter}`}
+            description="ستظهر الحجوزات هنا فور وصولها"
+            testID="empty-bookings"
+          />
         }
         renderItem={({ item }) => {
           const sc = statusColors[item.status];

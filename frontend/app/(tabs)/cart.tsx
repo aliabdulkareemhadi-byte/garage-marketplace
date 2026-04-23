@@ -6,6 +6,7 @@ import { Minus, Plus, Trash2, Tag, ShoppingBag, Package } from "lucide-react-nat
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useCart } from "../../src/context/CartContext";
 import { orders } from "../../src/data/mockData";
+import EmptyState from "../../src/components/EmptyState";
 
 type Tab = "cart" | "active" | "history";
 
@@ -41,7 +42,14 @@ export default function Cart() {
         <>
           <ScrollView contentContainerStyle={styles.scroll}>
             {items.length === 0 ? (
-              <EmptyState icon={<ShoppingBag size={40} color={colors.textLight} />} title="السلة فارغة" sub="أضف منتجات للمتابعة" />
+              <EmptyState
+                icon={<ShoppingBag size={40} color={colors.textLight} />}
+                title="السلة فارغة"
+                description="لم تقم بإضافة أي منتجات بعد. تصفّح منتجاتنا وابدأ بالتسوق الآن."
+                actionLabel="تصفّح المنتجات"
+                onAction={() => router.push("/(tabs)/home")}
+                testID="cart-empty"
+              />
             ) : (
               items.map((i) => (
                 <View key={i.id} style={styles.cartItem} testID={`cart-item-${i.id}`}>
@@ -121,17 +129,7 @@ export default function Cart() {
   );
 }
 
-function EmptyState({ icon, title, sub }: { icon: React.ReactNode; title: string; sub: string }) {
-  return (
-    <View style={{ alignItems: "center", padding: spacing.xxl, gap: spacing.md }}>
-      <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surfaceAlt, alignItems: "center", justifyContent: "center" }}>
-        {icon}
-      </View>
-      <Text style={{ fontSize: 16, fontWeight: "700", color: colors.textMain }}>{title}</Text>
-      <Text style={{ fontSize: 13, color: colors.textMuted }}>{sub}</Text>
-    </View>
-  );
-}
+function _UnusedEmpty() { return null; }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },

@@ -6,6 +6,7 @@ import { Edit3, Trash2, Plus, Wrench, CheckCircle2 } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { workshops } from "../../src/data/mockData";
+import EmptyState from "../../src/components/EmptyState";
 
 export default function WorkshopServices() {
   const router = useRouter();
@@ -43,10 +44,14 @@ export default function WorkshopServices() {
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Wrench size={40} color={colors.textLight} />
-            <Text style={styles.emptyTxt}>لا توجد خدمات بعد</Text>
-          </View>
+          <EmptyState
+            icon={<Wrench size={40} color={colors.textLight} />}
+            title="لا توجد خدمات بعد"
+            description="أضف الخدمات التي تقدمها ورشتك ليتمكن العملاء من حجزها"
+            actionLabel="+ إضافة خدمة"
+            onAction={() => router.push("/workshop-dashboard/service-edit")}
+            testID="empty-services"
+          />
         }
         renderItem={({ item }) => (
           <View style={styles.row} testID={`my-service-${item.id}`}>

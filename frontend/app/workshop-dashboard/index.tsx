@@ -6,6 +6,7 @@ import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp } from
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { workshops, workshopBookings } from "../../src/data/mockData";
+import StatCard from "../../src/components/StatCard";
 
 export default function WorkshopProfile() {
   const router = useRouter();
@@ -52,9 +53,9 @@ export default function WorkshopProfile() {
         </View>
 
         <View style={styles.stats}>
-          <StatBox icon={<Calendar size={20} color={colors.accent} />} v={`${activeBookings}`} l="حجز نشط" />
-          <StatBox icon={<TrendingUp size={20} color={colors.success} />} v={`${completed}`} l="مكتمل" />
-          <StatBox icon={<Star size={20} color={colors.star} />} v={ws.rating.toFixed(1)} l={`${ws.reviews} تقييم`} />
+          <StatCard icon={<Calendar size={20} color={colors.accent} />} value={activeBookings} label="حجز نشط" trend={{ value: "+18%", up: true }} tint={colors.accentSoft} testID="stat-active" />
+          <StatCard icon={<TrendingUp size={20} color={colors.success} />} value={completed} label="مكتمل" trend={{ value: "+32%", up: true }} tint="#D1FAE5" testID="stat-completed" />
+          <StatCard icon={<Star size={20} color={colors.star} />} value={ws.rating.toFixed(1)} label={`${ws.reviews} تقييم`} tint="#FEF3C7" testID="stat-rating" />
         </View>
 
         <View style={styles.card}>

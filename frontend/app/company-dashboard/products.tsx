@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Edit3, Trash2, Plus, Package, Star } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { products as seed, type Product } from "../../src/data/mockData";
+import EmptyState from "../../src/components/EmptyState";
 
 export default function CompanyProducts() {
   const router = useRouter();
@@ -40,10 +41,14 @@ export default function CompanyProducts() {
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Package size={40} color={colors.textLight} />
-            <Text style={styles.emptyTxt}>لا توجد منتجات بعد</Text>
-          </View>
+          <EmptyState
+            icon={<Package size={40} color={colors.textLight} />}
+            title="لا توجد منتجات بعد"
+            description="ابدأ بإضافة أول منتج لك ليظهر للعملاء"
+            actionLabel="+ إضافة منتج"
+            onAction={() => router.push("/company-dashboard/product-edit")}
+            testID="empty-products"
+          />
         }
         renderItem={({ item }) => (
           <View style={styles.row} testID={`my-product-${item.id}`}>

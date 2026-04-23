@@ -23,11 +23,18 @@ export default function Register() {
             <Text style={styles.sub}>انضم إلينا واستمتع بأفضل خدمات السيارات</Text>
           </View>
 
+          {topError && (
+            <View style={styles.errBanner}>
+              <AlertCircle size={16} color={colors.error} />
+              <Text style={styles.errBannerTxt}>{topError}</Text>
+            </View>
+          )}
+
           <View style={{ gap: spacing.md, marginTop: spacing.xl }}>
-            <Field label="الاسم الكامل" icon={<User size={18} color={colors.textLight} />} value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} placeholder="محمد أحمد" testID="register-name-input" />
-            <Field label="البريد الإلكتروني" icon={<Mail size={18} color={colors.textLight} />} value={form.email} onChangeText={(t) => setForm({ ...form, email: t })} placeholder="name@example.com" testID="register-email-input" keyboardType="email-address" />
-            <Field label="رقم الجوال" icon={<Phone size={18} color={colors.textLight} />} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} placeholder="05xxxxxxxx" testID="register-phone-input" keyboardType="phone-pad" />
-            <Field label="كلمة المرور" icon={<Lock size={18} color={colors.textLight} />} value={form.pwd} onChangeText={(t) => setForm({ ...form, pwd: t })} placeholder="••••••••" testID="register-password-input" secureTextEntry />
+            <Field label="الاسم الكامل" icon={<User size={18} color={colors.textLight} />} value={form.name} onChangeText={(t) => setForm({ ...form, name: t })} placeholder="محمد أحمد" testID="register-name-input" error={errors.name} />
+            <Field label="البريد الإلكتروني" icon={<Mail size={18} color={colors.textLight} />} value={form.email} onChangeText={(t) => setForm({ ...form, email: t })} placeholder="name@example.com" testID="register-email-input" keyboardType="email-address" autoCapitalize="none" error={errors.email} />
+            <Field label="رقم الجوال" icon={<Phone size={18} color={colors.textLight} />} value={form.phone} onChangeText={(t) => setForm({ ...form, phone: t })} placeholder="05xxxxxxxx" testID="register-phone-input" keyboardType="phone-pad" error={errors.phone} />
+            <Field label="كلمة المرور" icon={<Lock size={18} color={colors.textLight} />} value={form.pwd} onChangeText={(t) => setForm({ ...form, pwd: t })} placeholder="••••••••" testID="register-password-input" secureTextEntry error={errors.pwd} />
 
             <TouchableOpacity testID="register-agree" onPress={() => setAgree((a) => !a)} style={styles.agreeRow}>
               <View style={[styles.checkbox, agree && styles.checkboxOn]}>
@@ -41,11 +48,11 @@ export default function Register() {
 
           <TouchableOpacity
             testID="register-submit-btn"
-            style={[styles.primaryBtn, !agree && { opacity: 0.5 }]}
-            disabled={!agree}
-            onPress={() => router.replace("/(tabs)/home")}
+            style={[styles.primaryBtn, (!agree || loading) && { opacity: 0.5 }]}
+            disabled={!agree || loading}
+            onPress={submit}
           >
-            <Text style={styles.primaryTxt}>إنشاء الحساب</Text>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryTxt}>إنشاء الحساب</Text>}
           </TouchableOpacity>
 
           <View style={styles.footer}>
@@ -60,11 +67,11 @@ export default function Register() {
   );
 }
 
-function Field({ label, icon, testID, ...rest }: any) {
+function Field({ label, icon, testID, error, ...rest }: any) {
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.inputWrap}>
+      <View style={[styles.inputWrap, error && styles.inputWrapError]}>
         {icon}
         <TextInput
           testID={testID}
@@ -73,6 +80,12 @@ function Field({ label, icon, testID, ...rest }: any) {
           style={styles.input}
         />
       </View>
+      {error ? (
+        <View style={styles.errRow}>
+          <AlertCircle size={12} color={colors.error} />
+          <Text style={styles.errTxt}>{error}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -95,7 +108,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  inputWrapError: { borderColor: colors.error, backgroundColor: "#FEF2F2" },
   input: { flex: 1, fontSize: 14, color: colors.textMain, textAlign: "right", paddingVertical: 0 },
+  errRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
+  errTxt: { color: colors.error, fontSize: 11, fontWeight: "600" },
+  errBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
+  errBannerTxt: { color: colors.error, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
   agreeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.borderStrong, alignItems: "center", justifyContent: "center" },
   checkboxOn: { backgroundColor: colors.accent, borderColor: colors.accent },

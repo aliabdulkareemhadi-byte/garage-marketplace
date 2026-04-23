@@ -6,6 +6,7 @@ import { Star, MapPin, Package, Building2, Edit3, LogOut, CheckCircle2, Trending
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
 import { companies, products } from "../../src/data/mockData";
+import StatCard from "../../src/components/StatCard";
 
 export default function CompanyProfile() {
   const router = useRouter();
@@ -46,9 +47,9 @@ export default function CompanyProfile() {
         </View>
 
         <View style={styles.stats}>
-          <StatBox icon={<Package size={20} color={colors.accent} />} v={`${myProducts}`} l="منتج" />
-          <StatBox icon={<Eye size={20} color={colors.success} />} v="3.2k" l="مشاهدة" />
-          <StatBox icon={<TrendingUp size={20} color={colors.warning} />} v="48" l="طلب" />
+          <StatCard icon={<Package size={20} color={colors.accent} />} value={myProducts} label="منتج نشط" trend={{ value: "+12%", up: true }} tint={colors.accentSoft} testID="stat-products" />
+          <StatCard icon={<Eye size={20} color={colors.success} />} value="3.2k" label="مشاهدة الشهر" trend={{ value: "+28%", up: true }} tint="#D1FAE5" testID="stat-views" />
+          <StatCard icon={<TrendingUp size={20} color={colors.warning} />} value="48" label="طلب هذا الشهر" trend={{ value: "-4%", up: false }} tint="#FEF3C7" testID="stat-orders" />
         </View>
 
         <View style={styles.card}>
