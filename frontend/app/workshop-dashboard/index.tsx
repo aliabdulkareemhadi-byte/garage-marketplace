@@ -169,6 +169,24 @@ export default function WorkshopProfile() {
           ))}
         </View>
 
+        {/* Customer Maintenance Reminders entry point */}
+        <View style={styles.sectionHead}>
+          <Text style={styles.sectionTitle}>تذكيرات الصيانة</Text>
+        </View>
+        <View style={styles.card}>
+          <TouchableOpacity
+            testID="open-reminders-btn"
+            style={styles.servRow}
+            onPress={() => router.push("/workshop-dashboard/reminders")}
+          >
+            <View style={[styles.servIcon, { backgroundColor: colors.accentSoft }]}>
+              <Bell size={14} color={colors.accent} />
+            </View>
+            <Text style={styles.servName}>إدارة تذكيرات العملاء</Text>
+            <Text style={styles.sectionAction}>فتح</Text>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity testID="logout-btn" style={styles.logout} onPress={doLogout}>
           <LogOut size={18} color={colors.error} />
           <Text style={styles.logoutTxt}>تسجيل الخروج</Text>
