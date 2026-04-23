@@ -1,0 +1,38 @@
+{
+  "summary": "Frontend-only UI verification of new AdsSection on Customer Home screen (Expo web preview, mobile viewport 390x844). Logged in via /auth/login (mock), landed on /(tabs)/home. All 8 requested scenarios PASSED with no code changes needed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "No fixes required. Feature matches spec exactly."
+  ],
+  "critical_code_review_comments": [
+    "AdsSection.tsx is clean (~130 lines), uses useMemo for stable sort/filter, horizontal+inverted FlatList consistent with other home sections, testID pattern home-ad-<id> correctly applied.",
+    "Sort logic on isFeatured (boolean) uses if(a===b) return 0 else a.isFeatured?-1:1 — correct; featured ads rendered first in DOM order (ad-1, ad-5, ad-4, ad-6).",
+    "Component gracefully returns null when ads.length === 0 so no empty-section artifact.",
+    "home.tsx import & placement of <AdsSection/> is between the Categories row and Companies SectionHeader — exactly per spec, non-invasive."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% (8/8 scenarios verified)"},
+  "seed_data_creation": "None. Used existing /app/frontend/src/data/adsMockData.ts seed (6 ads).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Customer home lives at /home (after login). Login: /auth/login with any email+password (mock RoleAuthForm). AdsSection testIDs follow pattern `home-ad-<id>` where id already contains 'ad-' prefix, so the full data-testid is `home-ad-ad-1`, `home-ad-ad-4`, `home-ad-ad-5`, `home-ad-ad-6`. RTL + inverted FlatList means data-order-first (ad-1) appears on the RIGHT visually. Only 4 active ads render; ad-2 (expired) and ad-3 (scheduled) filtered out. Workshop dashboard ads at /workshop-dashboard/ads still loads with all 6 ads and promote buttons.",
+  "verification_details": {
+    "section_title_rendered": "'إعلانات ممولة' title present exactly once between Categories and Companies (الشركات)",
+    "rendered_ad_testids_in_dom_order": ["home-ad-ad-1", "home-ad-ad-5", "home-ad-ad-4", "home-ad-ad-6"],
+    "rightmost_visible_card": "home-ad-ad-1 (featured, shows 'مميز' gold star tag) — correct for RTL+inverted",
+    "hidden_ads": {"home-ad-ad-2_count": 0, "home-ad-ad-3_count": 0},
+    "tags_present": {"مميز_total": 3, "ممول_total": 5, "note": "2 featured ads each show مميز tag, 4 ads each show ممول tag; extra occurrences come from surrounding mock content (workshop/company tags) and are unrelated"},
+    "other_home_sections": "banner (عرض خاص), 4 categories, companies (c1-c3), workshops (w1-w4), 4 quick-services, products (p1-p4) — ALL present",
+    "bottom_tab_bar": "5 tabs unchanged: الرئيسية, الخدمات, السلة, الإشعارات, الحساب",
+    "workshop_dashboard_ads_regression": "PASS — /workshop-dashboard/ads renders all 6 cards, filter chips, promote buttons, create button; no errors",
+    "console_errors": "none"
+  },
+  "rca_of_issue": "N/A — no bugs found."
+}
