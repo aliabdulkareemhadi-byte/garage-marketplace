@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -36,6 +36,8 @@ import { colors, spacing, radius, typography } from "../../src/theme/theme";
 import EmptyState from "../../src/components/EmptyState";
 import FilterTabs from "../../src/components/FilterTabs";
 import { useWallet } from "../../src/context/WalletContext";
+import { useAuth } from "../../src/context/AuthContext";
+import { createAd, listAdsByOwner, updateAd } from "../../src/services/ads";
 import {
   AD_PRICE_FEATURED,
   AD_PRICE_NORMAL,
@@ -90,10 +92,30 @@ function genId(): string {
 export default function WorkshopAdsScreen() {
   const router = useRouter();
   const { wallet, deductBalance } = useWallet();
+  const { session } = useAuth();
+  const ownerUid = session?.uid;
 
   const [ads, setAds] = useState<Ad[]>(initialWorkshopAds);
   const [filter, setFilter] = useState<Filter>("الكل");
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Load ads from Firestore. Fallback to mock seed on empty / failure.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!ownerUid) return; // no session → keep mock seed
+      try {
+        const remote = await listAdsByOwner("workshop", ownerUid);
+        if (cancelled) return;
+        if (remote.length > 0) setAds(remote);
+      } catch {
+        // Firestore unreachable — keep mock seed.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ownerUid]);
 
   const visible = useMemo(() => {
     if (filter === "الكل") return ads;
@@ -105,8 +127,17 @@ export default function WorkshopAdsScreen() {
   const openCreate = () => setCreateOpen(true);
   const closeCreate = () => setCreateOpen(false);
 
-  const addAd = (newAd: Ad) => {
+  const addAd = async (newAd: Ad) => {
+    // Optimistic insert so the UI updates immediately, even when Firestore is offline.
     setAds((prev) => [newAd, ...prev]);
+    if (!ownerUid) return;
+    try {
+      const saved = await createAd({ ...newAd, ownerUid });
+      // Replace the optimistic item with the Firestore-backed one (real id).
+      setAds((prev) => prev.map((a) => (a.id === newAd.id ? saved : a)));
+    } catch {
+      // Firestore unreachable — keep the optimistic local ad.
+    }
   };
 
   const promote = (ad: Ad) => {
@@ -134,6 +165,10 @@ export default function WorkshopAdsScreen() {
                   ? { ...a, isPaid: true, promotionPrice: amount }
                   : a
               )
+            );
+            // Best-effort Firestore sync; failure does not roll back wallet.
+            updateAd(ad.id, { isPaid: true, promotionPrice: amount }).catch(
+              () => {}
             );
             Alert.alert("تم الترويج", "تم ترويج الإعلان بنجاح.");
           },

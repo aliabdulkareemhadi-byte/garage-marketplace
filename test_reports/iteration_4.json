@@ -1,48 +1,48 @@
 {
-  "summary": "Retested admin wallet-requests approve flow (iteration 4). Bug STILL PRESENT: tapping any admin-approve-req-* button updates the request status badge to مقبول but the wallet balance strip stays at 1,500 ر.س. Rejected status also updates correctly. The useRef queue + useEffect drainer approach in /app/frontend/app/admin/wallet-requests.tsx does not credit the wallet balance.",
-  "backend_issues": {
-    "critical": [],
-    "minor": []
-  },
+  "summary": "Frontend-only verification of Firestore 'ads' collection migration with mock-fallback behavior. All 6 review criteria verified live on preview. Found and fixed one CRITICAL import bug: /app/frontend/app/company-dashboard/ads.tsx used useEffect() without importing it — would crash the Company Ads screen with ReferenceError as soon as Firestore fetch effect ran. One-line fix applied. After fix: (1) Customer /(tabs)/home AdsSection renders 6 merged mock ads with featured first [ad-1, ad-5, cad-1, ad-4, ad-6, cad-2]. (2) Workshop /workshop-dashboard/ads renders 6 mock seeds, create modal opens, save adds ad optimistically (6→7 cards) even though Firestore write silently fails. (3) Company /company-dashboard/ads renders 3 mock seeds, create modal opens, save adds ad optimistically. (4) Promote flow visible; wallet strip shows 1,500 ر.س. (5) /workshop-dashboard, /company-dashboard, /admin/wallet-requests all render without red screens. (6) No compile/runtime errors from src/services/ads.ts imports. Auth-flow regression (T3 unverified, T4 wrong-password, register verify-notice) was NOT re-tested in this iteration — previous iteration_3 already validated those and they were out of scope of this Firestore-ads change.",
+  "backend_issues": {"critical": [], "minor": []},
   "frontend_issues": {
     "ui_bugs": [
-      {
-        "component": "admin/wallet-requests.tsx (balanceStrip)",
-        "issue": "Balance stays 1,500 ر.س after approving req-1001 (expected 6,500), req-1003 (expected 16,500), and req-1004 (expected 66,500). Status badges update to مقبول but wallet.balance is never credited. Reject req-1002 behaves correctly (no balance change, badge becomes مرفوض).",
-        "testID": "admin-approve-req-1001 / admin-approve-req-1003 / admin-approve-req-1004",
-        "priority": "CRITICAL"
-      }
+      {"component": "app/company-dashboard/ads.tsx", "issue": "Missing useEffect import — screen would crash with 'ReferenceError: useEffect is not defined' when the Firestore fetch effect is registered. FIXED by testing agent (one-line import change).", "testID": "company-ads-create-btn", "priority": "CRITICAL (fixed)"}
     ],
     "integration_issues": [
-      {
-        "flow": "Admin approve -> WalletContext credit",
-        "issue": "pendingApproveRef queue + drain useEffect does not actually result in WalletContext.approveTopUp crediting the balance, even though the status card UI reflects approved. No JS/console errors observed. Pending queue approach appears to either never drain or approveTopUp fails silently.",
-        "affected_testIDs": ["admin-approve-req-1001", "admin-approve-req-1003", "admin-approve-req-1004"]
-      }
+      {"flow": "Firestore reads/writes for ads collection", "issue": "firestore.googleapis.com is unreachable from preview pod (confirmed in iteration_3 and again here). Reads silently fail -> mock seeds are kept; writes silently fail -> optimistic state is kept. This is expected per the review brief. Fallback behavior works correctly.", "affected_testIDs": ["home-ad-*", "ad-*", "company-ad-*"]}
     ],
     "design_issues": [],
     "react_native_issues": []
   },
-  "test_report_links": [],
+  "test_report_links": [
+    "/tmp/home.png",
+    "/tmp/workshop_ads.png",
+    "/tmp/workshop_create_modal.png",
+    "/tmp/workshop_after_create.png",
+    "/tmp/company_ads.png",
+    "/tmp/company_create_modal.png",
+    "/tmp/company_after_create.png",
+    "/tmp/workshop_dash.png",
+    "/tmp/company_dash.png",
+    "/tmp/admin_wallet.png"
+  ],
   "action_items": [
-    "The pendingApproveRef / drain-useEffect fix in /app/frontend/app/admin/wallet-requests.tsx does NOT credit the wallet balance. Retains same symptom as iteration 3.",
-    "Recommended fix: stop routing through requestTopUp+approveTopUp for admin mock approvals. Either (a) expose a direct credit helper from WalletContext (e.g. creditBalance) that performs a single setWallet(balance+amount) and writes an approved tx in one go, OR (b) call requestTopUp(), then inside the very next useEffect that fires when the tx appears, call approveTopUp AND also synchronously update a local trigger — but verify with console.log that approveTopUp's inner `transactions.find(id)` actually locates the tx and that setWallet fires.",
-    "Debug hypothesis to verify: add console.log('drain', id, !!tx, tx?.status) inside the useEffect and console.log inside WalletContext.approveTopUp to confirm whether it enters the success branch. If it does, the bug is elsewhere (e.g. wallet state update not propagating to this screen — but balanceStrip reads useWallet().wallet.balance which would re-render).",
-    "Simplest robust fix: add a new `creditWallet(amount, note)` action in WalletContext.tsx that appends an approved 'topup' transaction and increments wallet.balance in a single pair of setters, and call that directly from onApprove. This sidesteps the closure-timing issue entirely and is consistent with the existing deductBalance pattern.",
-    "Note the user's rule 'do not change wallet logic' — an additive helper (new method, no changes to existing methods) should be acceptable and is the cleanest path."
+    "No outstanding bugs for the ads-migration feature. The useEffect import fix is minimal and already applied; main agent should keep it.",
+    "(Already noted in iteration_3) If Firestore E2E needs to be verified end-to-end, testing must be done from a network that can reach firestore.googleapis.com (local dev, physical device, or prod). Preview pod will always fall back to mock seeds."
   ],
   "critical_code_review_comments": [
-    "/app/frontend/app/admin/wallet-requests.tsx useEffect drain pattern is fragile: it depends on approveTopUp's identity changing on every transactions change, which it does, but the whole trip requires two render cycles and is hard to reason about. A direct creditWallet helper is materially simpler and testable.",
-    "onApprove fires Alert.alert('تم قبول الطلب ...') BEFORE the balance is actually credited. If approve silently fails (as it does now), the user sees a success alert but no balance change — misleading UX."
+    "CRITICAL FIXED: company-dashboard/ads.tsx was importing only { useMemo, useState } from react but used useEffect. Fixed.",
+    "Both workshop & company ads screens correctly guard remote fetch with if (!ownerUid) return; preserving mock seed when session is missing (which it is for admin-only/unauth'd preview sessions).",
+    "services/ads.ts stripUndefined() correctly prevents the Firestore 'Unsupported field value: undefined' error seen for entityId in iteration_3 (same pattern applied here for ownerUid/createdAt etc.).",
+    "AdsSection sort keeps featured first via boolean compare; verified in DOM order: ad-1, ad-5, cad-1 (featured) come before ad-4, ad-6, cad-2 (non-featured).",
+    "Note: remote !== null condition in AdsSection: initial state is null so mockMerged() is used; on a success with docs.length > 0 remote is set and used. Safe.",
+    "Promote handler best-effort Firestore sync with .catch(() => {}) prevents unhandled rejections even when offline. Good."
   ],
-  "updated_files": [],
+  "updated_files": ["/app/frontend/app/company-dashboard/ads.tsx"],
   "success_rate": {
-    "backend": "N/A (frontend-only test)",
-    "frontend": "25% (1/4 — only reject behaves correctly; 3 approves all fail to credit balance)"
+    "backend": "N/A (not requested)",
+    "frontend": "6/6 criteria verified live: home AdsSection w/ merged mock fallback & featured-first order, workshop create-ad optimistic add, company create-ad optimistic add (after useEffect fix), promote UI path renders, no red screens on any target route, no missing-export runtime errors from src/services/ads.ts."
   },
-  "seed_data_creation": "None — uses in-memory mock data (initialWallet=1,500 ر.س, 4 MOCK_REQUESTS).",
-  "retest_needed": true,
-  "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Preview URL: https://mechanic-shop-ads.preview.emergentagent.com/admin/wallet-requests. Expected sequence: 1,500 -> approve 1001 (5k) -> 6,500 -> reject 1002 -> 6,500 -> approve 1003 (10k) -> 16,500 -> approve 1004 (50k) -> 66,500. Observed: balance never moves off 1,500 through all actions; only status badges change. No console/page errors. react-native-web Alert did not produce a browser dialog (no dialog events captured).",
-  "rca_of_issue": "Reproduction: open /admin/wallet-requests, tap admin-approve-req-1001. Expected balanceStrip becomes '6,500 ر.س'; actual stays '1,500 ر.س'. Status tag correctly becomes 'مقبول'. Same on 1003 and 1004. Reject 1002 works as expected. RCA hypothesis: the useRef queue + useEffect([transactions, approveTopUp]) drain mechanism intended to work around the stale-closure problem in WalletContext.approveTopUp is not actually crediting the wallet. Either (a) the effect fires but approveTopUp still doesn't find the tx (closure ordering across Provider useMemo chain), or (b) setWallet inside approveTopUp runs but the component's useWallet subscription doesn't pick it up (unlikely — context works). Mitigation: introduce an additive creditWallet(amount, note) on WalletContext that performs approved-tx append and balance increment in a single call; invoke it directly from admin onApprove. This removes all closure-timing dependence and is trivially verifiable."
+  "seed_data_creation": "None (no auth performed this iteration; ads were created only as optimistic local state since Firestore is unreachable from preview).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Firestore remains unreachable from preview pod by design — do NOT treat 'Firestore docs not found' as a bug. Mock-fallback is the expected preview behavior. The useEffect import in /app/frontend/app/company-dashboard/ads.tsx has been fixed — do NOT revert (line 1 must include useEffect alongside useMemo, useState). Auth regression flows were validated in iteration_3; rerun only if AuthContext.tsx or auth screens change. Home ads testIDs: home-ad-<adId>. Workshop card testIDs: ad-<adId>. Company card testIDs: company-ad-<adId>.",
+  "rca_of_issue": "RCA: app/company-dashboard/ads.tsx was copied/extended from app/workshop-dashboard/ads.tsx with a new useEffect() block to fetch ads from Firestore, but the react import was not updated from { useMemo, useState } to include useEffect. At runtime, the first time the function component body executed (on navigation to /company-dashboard/ads), the call to useEffect would throw ReferenceError. Reproduction: navigate to /company-dashboard/ads in preview — pre-fix the whole screen renders a React error boundary / blank. Mitigation: added useEffect to the React import on line 1 of /app/frontend/app/company-dashboard/ads.tsx. Post-fix: screen renders 3 mock ads, create modal opens, optimistic create works."
 }

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -11,20 +11,52 @@ import { Star } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../theme/theme";
 import { initialWorkshopAds, initialCompanyAds } from "../data/adsMockData";
 import type { Ad } from "../types/ad";
+import { listActiveAds } from "../services/ads";
 
 type Props = {
   onPressAd?: (ad: Ad) => void;
 };
 
+// Merged mock fallback (active only, featured first).
+function mockMerged(): Ad[] {
+  return [...initialWorkshopAds, ...initialCompanyAds]
+    .filter((a) => a.status === "active")
+    .sort((a, b) => {
+      if (a.isFeatured === b.isFeatured) return 0;
+      return a.isFeatured ? -1 : 1;
+    });
+}
+
 export default function AdsSection({ onPressAd }: Props) {
+  // Start with the mock fallback so the home screen is never blank while
+  // Firestore is loading / offline.
+  const [remote, setRemote] = useState<Ad[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const docs = await listActiveAds();
+        if (cancelled) return;
+        if (docs.length > 0) setRemote(docs);
+      } catch {
+        // Keep mock fallback on failure.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const ads = useMemo(() => {
-    return [...initialWorkshopAds, ...initialCompanyAds]
+    const source = remote && remote.length > 0 ? remote : mockMerged();
+    return [...source]
       .filter((a) => a.status === "active")
       .sort((a, b) => {
         if (a.isFeatured === b.isFeatured) return 0;
         return a.isFeatured ? -1 : 1;
       });
-  }, []);
+  }, [remote]);
 
   if (ads.length === 0) return null;
 
