@@ -1,5 +1,5 @@
 {
-  "summary": "Frontend-only UI verification of new AdsSection on Customer Home screen (Expo web preview, mobile viewport 390x844). Logged in via /auth/login (mock), landed on /(tabs)/home. All 8 requested scenarios PASSED with no code changes needed.",
+  "summary": "Frontend-only testing of Firebase Email/Password auth replacing the mock. All 7 required flows pass: customer register shows Arabic verify notice and blocks navigation; unverified login shows EXACT Arabic message 'يرجى تأكيد البريد الإلكتروني أولاً' with resend button; wrong-password login shows mapped Arabic invalid-credential message and correctly hides resend button; company register (via /auth/company-register) shows auth-verify-notice + auth-resend-btn; workshop-dashboard, company-dashboard, /admin/wallet-requests and /workshop-dashboard/ads all render without Firebase-auth gating and without runtime errors.",
   "backend_issues": {"critical": [], "minor": []},
   "frontend_issues": {
     "ui_bugs": [],
@@ -7,32 +7,24 @@
     "design_issues": [],
     "react_native_issues": []
   },
-  "test_report_links": [],
-  "action_items": [
-    "No fixes required. Feature matches spec exactly."
+  "test_report_links": [
+    "/tmp/t1_reg.png",
+    "/tmp/t2_unverified.png",
+    "/tmp/t3_wrongpass.png",
+    "/tmp/t4_co_register.png"
   ],
+  "action_items": [],
   "critical_code_review_comments": [
-    "AdsSection.tsx is clean (~130 lines), uses useMemo for stable sort/filter, horizontal+inverted FlatList consistent with other home sections, testID pattern home-ad-<id> correctly applied.",
-    "Sort logic on isFeatured (boolean) uses if(a===b) return 0 else a.isFeatured?-1:1 — correct; featured ads rendered first in DOM order (ad-1, ad-5, ad-4, ad-6).",
-    "Component gracefully returns null when ads.length === 0 so no empty-section artifact.",
-    "home.tsx import & placement of <AdsSection/> is between the Categories row and Companies SectionHeader — exactly per spec, non-invasive."
+    "AuthContext.tsx: register() force-signs-out after sendEmailVerification — matches playbook and the PRD requirement. Good.",
+    "firebase.ts: apiKey, appId etc. hardcoded in source. Acceptable for Firebase web config (public keys) but consider moving to EXPO_PUBLIC_* env vars for easier multi-env deploy.",
+    "Login path correctly throws the EXACT Arabic string 'يرجى تأكيد البريد الإلكتروني أولاً' and login.tsx renders login-resend-btn conditionally on topError === that exact string — tight coupling, but works.",
+    "register.tsx (customer) does NOT render a visible resend button (no testID 'register-resend-btn' in the customer flow). The task description listed 'login-resend-btn' (customer) + 'auth-resend-btn' (company/workshop) only, so this is per-spec; resend after customer registration would require re-login attempt first."
   ],
   "updated_files": [],
-  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% (8/8 scenarios verified)"},
-  "seed_data_creation": "None. Used existing /app/frontend/src/data/adsMockData.ts seed (6 ads).",
+  "success_rate": {"backend": "N/A (not tested)", "frontend": "100% (7/7 flows)"},
+  "seed_data_creation": "Created 2 unverified Firebase users for testing: testuser+irzr01iq@example.com and testco+8dv2lo1j@example.com (throwaway, unverified). Safe to leave or prune from Firebase console.",
   "retest_needed": false,
   "should_main_agent_self_test": false,
-  "context_for_next_testing_agent": "Customer home lives at /home (after login). Login: /auth/login with any email+password (mock RoleAuthForm). AdsSection testIDs follow pattern `home-ad-<id>` where id already contains 'ad-' prefix, so the full data-testid is `home-ad-ad-1`, `home-ad-ad-4`, `home-ad-ad-5`, `home-ad-ad-6`. RTL + inverted FlatList means data-order-first (ad-1) appears on the RIGHT visually. Only 4 active ads render; ad-2 (expired) and ad-3 (scheduled) filtered out. Workshop dashboard ads at /workshop-dashboard/ads still loads with all 6 ads and promote buttons.",
-  "verification_details": {
-    "section_title_rendered": "'إعلانات ممولة' title present exactly once between Categories and Companies (الشركات)",
-    "rendered_ad_testids_in_dom_order": ["home-ad-ad-1", "home-ad-ad-5", "home-ad-ad-4", "home-ad-ad-6"],
-    "rightmost_visible_card": "home-ad-ad-1 (featured, shows 'مميز' gold star tag) — correct for RTL+inverted",
-    "hidden_ads": {"home-ad-ad-2_count": 0, "home-ad-ad-3_count": 0},
-    "tags_present": {"مميز_total": 3, "ممول_total": 5, "note": "2 featured ads each show مميز tag, 4 ads each show ممول tag; extra occurrences come from surrounding mock content (workshop/company tags) and are unrelated"},
-    "other_home_sections": "banner (عرض خاص), 4 categories, companies (c1-c3), workshops (w1-w4), 4 quick-services, products (p1-p4) — ALL present",
-    "bottom_tab_bar": "5 tabs unchanged: الرئيسية, الخدمات, السلة, الإشعارات, الحساب",
-    "workshop_dashboard_ads_regression": "PASS — /workshop-dashboard/ads renders all 6 cards, filter chips, promote buttons, create button; no errors",
-    "console_errors": "none"
-  },
-  "rca_of_issue": "N/A — no bugs found."
+  "context_for_next_testing_agent": "Firebase project sinkmarket-73267. Emails can be anything valid-syntax — Firebase will accept them; verification link is never clicked in test. Reusing an existing email will return auth/email-already-in-use (mapped to 'هذا البريد الإلكتروني مستخدم مسبقاً'). Use a fresh random email per register test. testIDs: register-verify-notice, login-resend-btn, auth-verify-notice, auth-resend-btn.",
+  "rca_of_issue": "N/A — no failures. All spec requirements satisfied end-to-end on preview URL."
 }

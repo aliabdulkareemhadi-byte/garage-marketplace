@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ChevronRight, Mail, Lock, Building2, Wrench, Phone, AlertCircle, Eye, EyeOff } from "lucide-react-native";
+import { ChevronRight, Mail, Lock, Building2, Wrench, Phone, AlertCircle, Eye, EyeOff, CheckCircle2 } from "lucide-react-native";
 import { colors, spacing, radius } from "../theme/theme";
 import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "../data/mockData";
@@ -16,7 +16,7 @@ type Props = {
 
 export default function RoleAuthForm({ mode, role, entityId, entityName }: Props) {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, register, resendVerification } = useAuth();
   const isLogin = mode === "login";
   const isCompany = role === "company";
   const roleLabel = isCompany ? "شركة" : "ورشة";
@@ -26,6 +26,8 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
+  const [verifyNotice, setVerifyNotice] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -42,18 +44,54 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
     return Object.keys(e).length === 0;
   };
 
-  const submit = () => {
+  const submit = async () => {
     setTopError(null);
+    setVerifyNotice(null);
     if (!validate()) {
       setTopError("يرجى تصحيح الأخطاء في النموذج");
       return;
     }
     setLoading(true);
-    setTimeout(() => {
+    try {
+      if (isLogin) {
+        await login(
+          role as UserRole,
+          form.email.trim(),
+          form.pwd,
+          form.name.trim() || entityName,
+          entityId
+        );
+        router.replace(isCompany ? "/company-dashboard" : "/workshop-dashboard");
+      } else {
+        await register(
+          role as UserRole,
+          form.email.trim(),
+          form.pwd,
+          form.name.trim() || entityName,
+          entityId
+        );
+        setVerifyNotice(
+          "تم إنشاء الحساب. أرسلنا رابط التأكيد إلى بريدك الإلكتروني. يرجى تأكيد البريد ثم تسجيل الدخول."
+        );
+      }
+    } catch (err: any) {
+      setTopError(err?.message || "تعذّر إتمام العملية");
+    } finally {
       setLoading(false);
-      login(role as UserRole, form.name || entityName, form.email, entityId);
-      router.replace(isCompany ? "/company-dashboard" : "/workshop-dashboard");
-    }, 900);
+    }
+  };
+
+  const onResend = async () => {
+    setResending(true);
+    setTopError(null);
+    try {
+      await resendVerification();
+      setVerifyNotice("تم إرسال رابط التأكيد مجدداً إلى بريدك.");
+    } catch (err: any) {
+      setTopError(err?.message || "تعذّر إعادة الإرسال");
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -79,6 +117,13 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
             <View style={styles.errBanner}>
               <AlertCircle size={16} color={colors.error} />
               <Text style={styles.errBannerTxt}>{topError}</Text>
+            </View>
+          )}
+
+          {verifyNotice && (
+            <View style={styles.okBanner} testID="auth-verify-notice">
+              <CheckCircle2 size={16} color={colors.success} />
+              <Text style={styles.okBannerTxt}>{verifyNotice}</Text>
             </View>
           )}
 
@@ -148,6 +193,21 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
             )}
           </TouchableOpacity>
 
+          {(topError === "يرجى تأكيد البريد الإلكتروني أولاً" || verifyNotice) && (
+            <TouchableOpacity
+              testID="auth-resend-btn"
+              style={styles.resendBtn}
+              onPress={onResend}
+              disabled={resending}
+            >
+              {resending ? (
+                <ActivityIndicator color={colors.accent} />
+              ) : (
+                <Text style={styles.resendTxt}>إعادة إرسال رابط التأكيد</Text>
+              )}
+            </TouchableOpacity>
+          )}
+
           <View style={styles.footer}>
             <Text style={styles.footerTxt}>{isLogin ? "ليس لديك حساب؟" : "لديك حساب؟"}</Text>
             <TouchableOpacity
@@ -196,6 +256,8 @@ const styles = StyleSheet.create({
   sub: { fontSize: 13, color: colors.textMuted, textAlign: "right", marginTop: spacing.sm, lineHeight: 20 },
   errBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
   errBannerTxt: { color: colors.error, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
+  okBanner: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#ECFDF5", borderWidth: 1, borderColor: "#A7F3D0", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
+  okBannerTxt: { color: colors.success, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
   label: { fontSize: 13, fontWeight: "700", color: colors.textMain, marginBottom: 6, textAlign: "right" },
   inputWrap: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceAlt, borderRadius: radius.md, paddingHorizontal: spacing.lg, height: 52, borderWidth: 1, borderColor: colors.border },
   inputWrapError: { borderColor: colors.error, backgroundColor: "#FEF2F2" },
@@ -204,6 +266,8 @@ const styles = StyleSheet.create({
   errTxt: { color: colors.error, fontSize: 11, fontWeight: "600" },
   primaryBtn: { backgroundColor: colors.primary, height: 54, borderRadius: radius.md, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
   primaryTxt: { color: "#fff", fontSize: 16, fontWeight: "800" },
+  resendBtn: { height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center", marginTop: spacing.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  resendTxt: { color: colors.accent, fontSize: 13, fontWeight: "800" },
   footer: { flexDirection: "row", justifyContent: "center", gap: 6, marginTop: spacing.xl },
   footerTxt: { color: colors.textMuted, fontSize: 14 },
   footerLink: { color: colors.accent, fontSize: 14, fontWeight: "800" },
