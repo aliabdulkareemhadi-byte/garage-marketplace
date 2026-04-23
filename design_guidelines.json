@@ -1,0 +1,125 @@
+{
+  "theme": "Light",
+  "archetype": "Swiss & High-Contrast (Archetype 4)",
+  "vibe": "Clean, professional, modern like Uber/Amazon, mobile-first",
+  "global_rules": {
+    "direction": "RTL",
+    "language": "Arabic",
+    "platform": "React Native Expo",
+    "testing_attributes": "Add testID to all interactive elements (e.g. testID='login-button')"
+  },
+  "colors": {
+    "primary": "#0A0A0A", 
+    "secondary": "#FFFFFF",
+    "accent_action": "#0066FF",
+    "background_app": "#F8F9FA",
+    "surface_card": "#FFFFFF",
+    "text_main": "#111827",
+    "text_muted": "#4B5563",
+    "text_light": "#9CA3AF",
+    "border_light": "#E5E7EB",
+    "error": "#EF4444",
+    "success": "#10B981",
+    "warning": "#F59E0B"
+  },
+  "typography": {
+    "font_family_primary": "Cairo",
+    "font_family_secondary": "Tajawal",
+    "hierarchy": {
+      "h1_screen_title": { "size": "24px", "weight": "700", "letter_spacing": "0px" },
+      "h2_section_title": { "size": "18px", "weight": "700" },
+      "h3_card_title": { "size": "16px", "weight": "600" },
+      "body_text": { "size": "14px", "weight": "400", "color": "#4B5563" },
+      "small_label": { "size": "12px", "weight": "500", "color": "#9CA3AF" }
+    }
+  },
+  "spacing_system": {
+    "xs": "4px",
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "xl": "24px",
+    "xxl": "32px",
+    "rules": "Use exactly these values. Do not invent 10px or 15px. App padding horizontal is 16px."
+  },
+  "layout_and_surfaces": {
+    "cards": {
+      "border_radius": "8px",
+      "background": "#FFFFFF",
+      "border": "1px solid #E5E7EB",
+      "shadow": "none (flat design preference)"
+    },
+    "buttons": {
+      "border_radius": "8px",
+      "height": "48px",
+      "primary": "background-color: #0A0A0A or #0066FF, color: #FFFFFF",
+      "secondary": "background-color: #F3F4F6, color: #111827",
+      "outline": "border: 1px solid #E5E7EB, color: #111827"
+    },
+    "inputs": {
+      "border_radius": "8px",
+      "height": "48px",
+      "background": "#F9FAFB",
+      "border": "1px solid #D1D5DB",
+      "padding": "0 16px",
+      "text_align": "right"
+    },
+    "rtl_guidelines": {
+      "flex": "Use standard flex-direction row (React Native flips it automatically if I18nManager.isRTL is true).",
+      "icons": "Mirrored for back/forward arrows.",
+      "text_align": "right",
+      "padding_margin": "CRITICAL: Use paddingHorizontal, paddingStart, paddingEnd, marginStart, marginEnd instead of left/right to ensure RTL compatibility."
+    }
+  },
+  "screens": {
+    "Login_Register": "Clean form, large inputs (48px height), prominent CTA, 'Forgot Password' link, social login buttons.",
+    "Home": "Header with user location/greeting. Search bar. 3 horizontal scrollable sections: 'Companies' (large cards), 'Workshops' (medium cards), 'Products' (grid or scrollable list).",
+    "Company_Profile": "Cover image, logo overlap. Details section. List of services offered by company, Ratings, Location map snippet.",
+    "Workshop_Profile": "Similar to Company but with 'Book Now' sticky footer CTA. Address, Reviews, Services list.",
+    "Product_Details": "Large image gallery (swiper). Title, Price, Specs list. Sticky footer with 'Add to Cart' and quantity selector.",
+    "Services_List": "Vertical list of service cards. Filter/Sort pills at top.",
+    "Booking_Page": "Step-by-step or single scroll form: Select vehicle, Select Service, Date/Time picker (horizontal slots), Confirm CTA.",
+    "Cart_Orders": "Top tabs: Cart (items with +/- qty), Active Orders, Order History. Cart has checkout summary at bottom.",
+    "Notifications": "Simple list of unread (highlighted bg) and read notifications. Icon + Text + Time.",
+    "User_Profile": "Avatar, Name. Vertical menu items: My Orders, My Bookings, Addresses, Settings, Logout. Simple 1px borders between items."
+  },
+  "components": {
+    "CompanyCard": "Horizontal layout. Image left (or right in RTL), Title, Rating, Category tag.",
+    "WorkshopCard": "Square layout. Image top, Title, Location, Rating.",
+    "ProductCard": "Vertical. Image top, Title (2 lines max), Price, Add icon.",
+    "ServiceCard": "Row layout. Icon, Service Name, Price range, Chevron."
+  },
+  "assets": {
+    "icons_library": "lucide-react-native or @expo/vector-icons (Feather/MaterialCommunityIcons)",
+    "images": {
+      "hero_driving": {
+        "url": "https://images.unsplash.com/photo-1636613112804-c5aebc1f4d8d",
+        "category": "Home Banner / Context"
+      },
+      "workshop_placeholder": {
+        "url": "https://images.pexels.com/photos/8986039/pexels-photo-8986039.jpeg",
+        "category": "Workshop / Company Profile Cover"
+      },
+      "product_engine": {
+        "url": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3",
+        "category": "Product Placeholder - Engine"
+      },
+      "product_wheel": {
+        "url": "https://images.unsplash.com/photo-1611633235555-45e252fe48c8",
+        "category": "Product Placeholder - Wheel"
+      },
+      "product_filter": {
+        "url": "https://images.unsplash.com/photo-1522598140461-ec9911e01c53",
+        "category": "Product Placeholder - Filter"
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "Focus heavily on RTL text alignment (text-align: right) and paddingStart/marginEnd properties.",
+    "Build as a React Native Expo application. Use pure StyleSheet for styling, do not use Tailwind unless NativeWind is pre-installed.",
+    "Create 10 functional screens with navigation (React Navigation).",
+    "Keep styling ultra clean: use #0A0A0A for primary buttons and #0066FF for links/accents.",
+    "Mock all data locally.",
+    "Component files should end in .js (not .tsx)."
+  ]
+}
