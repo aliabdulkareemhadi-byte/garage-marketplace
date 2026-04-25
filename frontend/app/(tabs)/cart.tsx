@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Minus, Plus, Trash2, Tag, ShoppingBag, Package } from "lucide-react-native";
@@ -14,6 +14,19 @@ export default function Cart() {
   const [tab, setTab] = useState<Tab>("cart");
   const router = useRouter();
   const { items, updateQty, removeItem, total } = useCart();
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const handleCheckout = () => {
+    if (checkingOut) return;
+    setCheckingOut(true);
+    try {
+      Alert.alert("تم إرسال الطلب (محاكاة)");
+    } catch (err: any) {
+      Alert.alert("تعذّر إتمام الطلب", err?.message || "حدث خطأ غير متوقع.");
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -93,7 +106,7 @@ export default function Cart() {
                 <Text style={styles.fLabel}>الإجمالي</Text>
                 <Text style={styles.fTotal}>{total.toFixed(0)} ر.س</Text>
               </View>
-              <TouchableOpacity testID="checkout-btn" style={styles.checkout} onPress={() => alert("تم إرسال الطلب (محاكاة)")}>
+              <TouchableOpacity testID="checkout-btn" style={[styles.checkout, checkingOut && { opacity: 0.7 }]} onPress={handleCheckout} disabled={checkingOut}>
                 <Text style={styles.checkoutTxt}>إتمام الشراء</Text>
               </TouchableOpacity>
             </View>
