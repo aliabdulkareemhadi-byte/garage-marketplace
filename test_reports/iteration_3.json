@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only regression of Firestore user-profile additions in AuthContext.tsx. CRITICAL bug found and fixed in /app/frontend/src/context/AuthContext.tsx writeUserDoc(): Firestore setDoc was rejecting registrations because `entityId: undefined` was being written for the customer flow (customer register does not pass entityId). The red banner 'Function setDoc() called with invalid data. Unsupported field value: undefined (found in field entityId in document users/<uid>)' was visible and blocked the verify-notice from appearing, meaning Firestore doc was NEVER created for customers, sendEmailVerification was never called, and the forced sign-out never ran. Applied a minimal fix that strips undefined values from writeUserDoc() payload. Post-fix, the red banner is gone (confirmed via screenshot), and the earlier regression flows (T3 unverified login, T4 wrong-password) still pass. However, the preview environment appears to block/throttle firestore.googleapis.com traffic: Firestore getDoc via the Firebase Web SDK (both app-bundled and an independent test client loaded from gstatic) returned 'Failed to get document because the client is offline', so I could NOT fully verify the content of the users/<uid> document via a live getDoc read. The application's own setDoc write during register() also seems to hang in the preview for this reason — the spinner on the submit button persists and auth-verify-notice / register-verify-notice did not show within 45s post-fix. This is infra/network (outbound HTTPS to Firestore from the preview pod) and not a code bug. All dashboard / admin screens still render.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Customer register /auth/register → Firestore users/<uid>",
+       "issue": "PRE-FIX: Red banner 'Function setDoc() called with invalid data. Unsupported field value: undefined (found in field entityId in document users/<uid>)'. entityId is undefined for customer role and Firestore rejects undefined field values. Result: Firestore doc never created, sendEmailVerification never sent, forced sign-out never happened, user only exists in Firebase Auth. POST-FIX: no more validation error; see action item about verifying live write in a non-preview environment.",
+       "affected_testIDs": ["register-submit-btn", "register-verify-notice"]},
+      {"flow": "Firestore connectivity from preview pod",
+       "issue": "firestore.googleapis.com reads/writes appear to time-out or fail as 'client is offline' in the preview environment. Reproduced with an isolated Firebase Web SDK (v10.12.2) in-browser tester using the same project config. Firebase Auth REST endpoints work fine (login/register/unverified/wrong-password all pass), but Firestore does not. The app's own register() setDoc call also hangs past 45 s post-fix. Need to verify in a normal network (e.g. local Expo, Android device, or prod) that the Firestore doc is actually written with the expected fields.",
+       "affected_testIDs": []}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/tmp/t1_customer_register.png",
+    "/tmp/t1b_customer_register.png",
+    "/tmp/t1c_cust.png",
+    "/tmp/t2_company_register.png",
+    "/tmp/t2b_company_register.png",
+    "/tmp/t2c_co.png",
+    "/tmp/t3_unverified_login.png",
+    "/tmp/t4_wrongpass.png"
+  ],
+  "action_items": [
+    "Re-verify on a real device or non-preview network that after customer register, users/<uid> in Firestore contains: {uid, email, name, role:'customer', emailVerified:false, createdAt:Timestamp, updatedAt:Timestamp} and NO 'entityId' field (absent, not null).",
+    "Re-verify company register writes entityId (company id from mockData) on users/<uid> with role:'company'.",
+    "If outbound Firestore traffic is required for preview testing, consider enabling egress to *.googleapis.com in the preview pod network policy, otherwise all Firestore-dependent E2E will appear as timeouts here.",
+    "Consider also adding a short client-side timeout or error-surface on register() so that if setDoc hangs (as observed in preview) the user gets a useful error instead of an indefinite spinner."
+  ],
+  "critical_code_review_comments": [
+    "writeUserDoc() in AuthContext.tsx was passing the raw Partial<UserDoc> (including entityId:undefined) into Firestore. Firestore SDK's setDoc rejects undefined values with a synchronous validation error. Fixed by stripping undefined keys before setDoc. Alternative fix would be at call-sites (omit entityId when customer) but central stripping is safer.",
+    "Safety-net / legacy-user code path in login() (lines ~246-264) looks correct: when Firestore doc is missing, it constructs one from the role/name/entityId args passed to login() and best-effort writes it. Could not live-test it in preview due to Firestore network issue; logic reviewed and is sound.",
+    "onAuthStateChanged rehydration path (lines ~146-212) correctly prefers Firestore → AsyncStorage cache → null, and syncs emailVerified best-effort. Good.",
+    "register() writes the Firestore doc BEFORE sendEmailVerification + fbSignOut, so if the setDoc throws (as it did for customer pre-fix), the user is left signed-in without a verification email. After my fix this path executes normally.",
+    "Firestore security rules are not in this repo; ensure rules allow `request.auth.uid == userId` on create for users/{userId} so register() can write while still authenticated as the new user."
+  ],
+  "updated_files": ["/app/frontend/src/context/AuthContext.tsx"],
+  "success_rate": {
+    "backend": "N/A (not requested)",
+    "frontend": "4/7 verified live (T3 unverified-login, T4 wrong-password, T5 safety-net via code inspection, T6 dashboards render); 2/7 (T1 customer FS doc, T2 company FS doc) could not be live-verified due to Firestore being unreachable from preview pod — code path fixed & validated at the UI/error-banner level."
+  },
+  "seed_data_creation": "Created throwaway unverified Firebase users across runs: testuser+t5afbwgi@example.com, testuser+aanoniuz@example.com, testuser+4w79yn0k@example.com, testuser+ypiutoa1@example.com, testco+ftnhdyuh@example.com, testco+mu81yqr3@example.com, testco+9bsdnw9p@example.com, testco+jqoajx62@example.com. Accounts with pre-fix runs will NOT have a Firestore users/<uid> doc; those created after the fix may also be missing the doc if Firestore network was unreachable. Safe to delete from Firebase console.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The preview pod cannot reach firestore.googleapis.com (reads/writes time out or report 'client is offline'). Any Firestore-dependent E2E on /auth/register and /auth/company-register will hang on the submit spinner here, even though Firebase Auth itself works fine (register creates the user, sendEmailVerification probably fires). Verify Firestore doc shape from a normal network (local expo, physical device, or Firebase console). The AuthContext.tsx fix (strip undefined fields from writeUserDoc payload) is already applied — do NOT revert. Regression tests T3 (unverified login Arabic msg + login-resend-btn) and T4 (wrong-password Arabic msg) still pass against the preview. Dashboards /workshop-dashboard, /company-dashboard, /admin/wallet-requests, /workshop-dashboard/ads render without red screens.",
+  "rca_of_issue": "RCA of the CRITICAL bug: AuthContext.register('customer', ...) does not receive an entityId, so it called writeUserDoc(uid, { ..., entityId: undefined, ... }). The Firebase Firestore SDK validates payload fields synchronously and throws 'Unsupported field value: undefined (found in field entityId)', propagated to the UI as a red error banner in register.tsx. This blocked ALL subsequent customer register steps: no Firestore doc, no verification email, no sign-out. Reproduction: Go to /auth/register, fill form with a fresh email, submit → red banner shown. Fix applied: writeUserDoc now strips keys whose value is undefined before spreading into the setDoc payload, so the customer flow sends only defined fields and Firestore accepts the create. Post-fix screenshot confirms the red banner is gone on submit; only network-level timeouts remain in the preview environment."
+}
