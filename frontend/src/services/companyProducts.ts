@@ -63,14 +63,29 @@ export async function createProduct(
   ownerUid: string,
   data: Omit<CompanyProduct, "id">
 ): Promise<CompanyProduct> {
+  const stripped = stripUndefined(data as Record<string, any>);
   const payload = {
-    ...stripUndefined(data as Record<string, any>),
+    ...stripped,
     ownerUid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  const ref = await addDoc(collection(db, COL), payload);
-  return { ...data, id: ref.id };
+
+  console.log("[companyProducts] createProduct — ownerUid:", ownerUid);
+  console.log("[companyProducts] createProduct — collection:", COL);
+  console.log("[companyProducts] createProduct — payload:", JSON.stringify(stripped, null, 2));
+
+  try {
+    const ref = await addDoc(collection(db, COL), payload);
+    console.log("[companyProducts] createProduct — SUCCESS, docId:", ref.id);
+    return { ...data, id: ref.id };
+  } catch (err: any) {
+    console.error("[companyProducts] createProduct — FAILED");
+    console.error("[companyProducts]   code:", err?.code);
+    console.error("[companyProducts]   message:", err?.message);
+    console.error("[companyProducts]   full error:", err);
+    throw err;
+  }
 }
 
 /** Patch an existing product document. */
@@ -78,10 +93,22 @@ export async function updateProduct(
   productId: string,
   data: Partial<Omit<CompanyProduct, "id">>
 ): Promise<void> {
-  await updateDoc(doc(db, COL, productId), {
-    ...stripUndefined(data as Record<string, any>),
-    updatedAt: serverTimestamp(),
-  });
+  const stripped = stripUndefined(data as Record<string, any>);
+  console.log("[companyProducts] updateProduct — productId:", productId);
+  console.log("[companyProducts] updateProduct — patch:", JSON.stringify(stripped, null, 2));
+
+  try {
+    await updateDoc(doc(db, COL, productId), {
+      ...stripped,
+      updatedAt: serverTimestamp(),
+    });
+    console.log("[companyProducts] updateProduct — SUCCESS");
+  } catch (err: any) {
+    console.error("[companyProducts] updateProduct — FAILED");
+    console.error("[companyProducts]   code:", err?.code);
+    console.error("[companyProducts]   message:", err?.message);
+    throw err;
+  }
 }
 
 /** Permanently delete a product. */
