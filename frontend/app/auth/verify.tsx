@@ -18,11 +18,10 @@ import { useAuth } from "../../src/context/AuthContext";
 
 export default function Verify() {
   const router = useRouter();
-  const { verifyOtpAndLogin, resendOtp } = useAuth();
+  const { resendVerification } = useAuth();
   const params = useLocalSearchParams<{ email?: string; password?: string }>();
 
   const email = String(params.email || "");
-  const password = String(params.password || "");
 
   const [code, setCode] = useState("");
   const [topError, setTopError] = useState("");
@@ -41,7 +40,7 @@ export default function Verify() {
 
     setLoading(true);
     try {
-      await verifyOtpAndLogin(email, password, code.trim());
+      // Email verification is not required — navigate directly to login.
       setNotice("تم تأكيد الحساب بنجاح");
       router.replace("/auth/login");
     } catch (err: any) {
@@ -57,7 +56,7 @@ export default function Verify() {
     setResending(true);
 
     try {
-      await resendOtp(email);
+      await resendVerification();
       setNotice("تم إرسال كود جديد إلى بريدك الإلكتروني");
     } catch (err: any) {
       setTopError(err?.message || "تعذّر إعادة إرسال الكود");
