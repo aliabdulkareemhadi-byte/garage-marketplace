@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Minus, Plus, Trash2, Tag, ShoppingBag, Package } from "lucide-react-native";
@@ -13,7 +13,24 @@ type Tab = "cart" | "active" | "history";
 export default function Cart() {
   const [tab, setTab] = useState<Tab>("cart");
   const router = useRouter();
-  const { items, updateQty, removeItem, total } = useCart();
+  const { items, updateQty, removeItem, total, clear } = useCart();
+  const [checkingOut, setCheckingOut] = useState(false);
+
+  const handleCheckout = async () => {
+    if (items.length === 0 || checkingOut) return;
+    setCheckingOut(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      clear();
+      Alert.alert("تم إرسال الطلب", "تم استلام طلبك بنجاح وسيتم التواصل معك قريباً.", [
+        { text: "حسناً", onPress: () => router.push("/(tabs)/home") },
+      ]);
+    } catch (err: any) {
+      Alert.alert("تعذّر إتمام الطلب", err?.message || "حدث خطأ غير متوقّع، يرجى المحاولة مرة أخرى.");
+    } finally {
+      setCheckingOut(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -93,8 +110,18 @@ export default function Cart() {
                 <Text style={styles.fLabel}>الإجمالي</Text>
                 <Text style={styles.fTotal}>{total.toFixed(0)} ر.س</Text>
               </View>
-              <TouchableOpacity testID="checkout-btn" style={styles.checkout} onPress={() => alert("تم إرسال الطلب (محاكاة)")}>
-                <Text style={styles.checkoutTxt}>إتمام الشراء</Text>
+              <TouchableOpacity
+                testID="checkout-btn"
+                style={[styles.checkout, (checkingOut || items.length === 0) && { opacity: 0.6 }]}
+                onPress={handleCheckout}
+                disabled={checkingOut || items.length === 0}
+                activeOpacity={0.85}
+              >
+                {checkingOut ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.checkoutTxt}>إتمام الشراء</Text>
+                )}
               </TouchableOpacity>
             </View>
           )}

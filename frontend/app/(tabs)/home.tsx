@@ -50,7 +50,12 @@ export default function Home() {
         </View>
 
         {/* Hero banner */}
-        <TouchableOpacity activeOpacity={0.9} style={styles.banner}>
+        <TouchableOpacity
+          testID="home-banner-btn"
+          activeOpacity={0.9}
+          style={styles.banner}
+          onPress={() => router.push("/(tabs)/services")}
+        >
           <Image
             source={{ uri: "https://images.unsplash.com/photo-1636613112804-c5aebc1f4d8d?w=1200" }}
             style={StyleSheet.absoluteFill}
@@ -89,7 +94,7 @@ export default function Home() {
         <AdsSection />
 
         {/* Companies */}
-        <SectionHeader title="الشركات" onAll={() => {}} />
+        <SectionHeader title="الشركات" onAll={() => router.push("/(tabs)/services")} />
         <FlatList
           data={companies}
           keyExtractor={(i) => i.id}
@@ -104,7 +109,7 @@ export default function Home() {
         />
 
         {/* Workshops */}
-        <SectionHeader title="الورش الأعلى تقييماً" onAll={() => {}} />
+        <SectionHeader title="الورش الأعلى تقييماً" onAll={() => router.push("/(tabs)/services")} />
         <FlatList
           data={workshops}
           keyExtractor={(i) => i.id}
@@ -138,7 +143,7 @@ export default function Home() {
         </View>
 
         {/* Products */}
-        <SectionHeader title="قطع غيار مميزة" onAll={() => {}} />
+        <SectionHeader title="قطع غيار مميزة" onAll={() => router.push("/(tabs)/cart")} />
         <FlatList
           data={products}
           keyExtractor={(i) => i.id}

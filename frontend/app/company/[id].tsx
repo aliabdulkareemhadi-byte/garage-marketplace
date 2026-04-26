@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Share, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Star, MapPin, Phone, Globe, ChevronRight, Share2, Heart, CheckCircle2 } from "lucide-react-native";
@@ -11,6 +11,47 @@ export default function CompanyProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const company = companies.find((c) => c.id === id) || companies[0];
+  const [favorite, setFavorite] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: company.name,
+        message: `${company.name}\n${company.category} · ${company.city}`,
+      });
+    } catch (err: any) {
+      Alert.alert("تعذّر المشاركة", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
+  const handleFavorite = () => {
+    setFavorite((f) => !f);
+    Alert.alert(favorite ? "تمت الإزالة من المفضلة" : "تمت الإضافة إلى المفضلة", company.name);
+  };
+
+  const openLink = async (url: string, fallbackMsg: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert("غير متاح", fallbackMsg);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err: any) {
+      Alert.alert("تعذّر فتح الرابط", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
+  const handleContact = () => {
+    Alert.alert(
+      "التواصل مع الشركة",
+      `هل تريد الاتصال بشركة ${company.name}؟`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "اتصال", onPress: () => openLink("tel:+966111234567", "خدمة الاتصال غير متاحة على هذا الجهاز.") },
+      ],
+    );
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -23,11 +64,11 @@ export default function CompanyProfile() {
               <ChevronRight size={20} color="#fff" />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              <TouchableOpacity style={styles.topBtn}>
+              <TouchableOpacity testID="cp-share" style={styles.topBtn} onPress={handleShare}>
                 <Share2 size={18} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.topBtn}>
-                <Heart size={18} color="#fff" />
+              <TouchableOpacity testID="cp-favorite" style={styles.topBtn} onPress={handleFavorite}>
+                <Heart size={18} color="#fff" fill={favorite ? "#fff" : "transparent"} />
               </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -50,10 +91,26 @@ export default function CompanyProfile() {
         </View>
 
         <View style={styles.quickRow}>
-          <QuickItem icon={<Phone size={16} color={colors.accent} />} label="اتصال" />
-          <QuickItem icon={<MapPin size={16} color={colors.accent} />} label="الموقع" />
-          <QuickItem icon={<Globe size={16} color={colors.accent} />} label="الموقع" />
-          <QuickItem icon={<Share2 size={16} color={colors.accent} />} label="مشاركة" />
+          <QuickItem
+            icon={<Phone size={16} color={colors.accent} />}
+            label="اتصال"
+            onPress={() => openLink("tel:+966111234567", "خدمة الاتصال غير متاحة على هذا الجهاز.")}
+          />
+          <QuickItem
+            icon={<MapPin size={16} color={colors.accent} />}
+            label="الموقع"
+            onPress={() => openLink(`https://maps.google.com/?q=${encodeURIComponent(company.city)}`, "تعذّر فتح الخرائط.")}
+          />
+          <QuickItem
+            icon={<Globe size={16} color={colors.accent} />}
+            label="الموقع"
+            onPress={() => Alert.alert("الموقع الإلكتروني", "هذه الميزة قيد التطوير وستتوفر قريباً.")}
+          />
+          <QuickItem
+            icon={<Share2 size={16} color={colors.accent} />}
+            label="مشاركة"
+            onPress={handleShare}
+          />
         </View>
 
         <Section title="نبذة عن الشركة">
@@ -93,7 +150,7 @@ export default function CompanyProfile() {
       </ScrollView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footer}>
-        <TouchableOpacity testID="cp-contact-btn" style={styles.primaryBtn}>
+        <TouchableOpacity testID="cp-contact-btn" style={styles.primaryBtn} onPress={handleContact} activeOpacity={0.85}>
           <Text style={styles.primaryTxt}>التواصل مع الشركة</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -118,9 +175,9 @@ function WorkshopCardFull({ workshop, onPress }: any) {
   );
 }
 
-function QuickItem({ icon, label }: { icon: React.ReactNode; label: string }) {
+function QuickItem({ icon, label, onPress }: { icon: React.ReactNode; label: string; onPress?: () => void }) {
   return (
-    <TouchableOpacity style={styles.quickItem}>
+    <TouchableOpacity style={styles.quickItem} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.quickIcon}>{icon}</View>
       <Text style={styles.quickLabel}>{label}</Text>
     </TouchableOpacity>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList, Dimensions, Alert, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Star, ChevronRight, Share2, Heart, Minus, Plus, Truck, Shield, CheckCircle2 } from "lucide-react-native";
@@ -17,6 +17,35 @@ export default function ProductDetails() {
   const p = products.find((x) => x.id === id) || products[0];
   const [qty, setQty] = useState(1);
   const [active, setActive] = useState(0);
+  const [favorite, setFavorite] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: p.title,
+        message: `${p.title}\n${p.price} ر.س`,
+      });
+    } catch (err: any) {
+      Alert.alert("تعذّر المشاركة", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
+  const handleFavorite = () => {
+    setFavorite((f) => !f);
+    Alert.alert(favorite ? "تمت الإزالة من المفضلة" : "تمت الإضافة إلى المفضلة", p.title);
+  };
+
+  const handleAddToCart = () => {
+    if (!p.inStock) return;
+    try {
+      for (let i = 0; i < qty; i++) {
+        addItem({ id: p.id, title: p.title, price: p.price, image: p.images[0] });
+      }
+      router.push("/(tabs)/cart");
+    } catch (err: any) {
+      Alert.alert("تعذّر إضافة المنتج", err?.message || "حدث خطأ غير متوقّع، يرجى المحاولة مرة أخرى.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -40,8 +69,12 @@ export default function ProductDetails() {
               <ChevronRight size={20} color={colors.textMain} />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              <TouchableOpacity style={styles.topBtn}><Share2 size={18} color={colors.textMain} /></TouchableOpacity>
-              <TouchableOpacity style={styles.topBtn}><Heart size={18} color={colors.textMain} /></TouchableOpacity>
+              <TouchableOpacity testID="pd-share" style={styles.topBtn} onPress={handleShare}>
+                <Share2 size={18} color={colors.textMain} />
+              </TouchableOpacity>
+              <TouchableOpacity testID="pd-favorite" style={styles.topBtn} onPress={handleFavorite}>
+                <Heart size={18} color={favorite ? colors.error : colors.textMain} fill={favorite ? colors.error : "transparent"} />
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
           {p.images.length > 1 && (
@@ -116,12 +149,10 @@ export default function ProductDetails() {
         </View>
         <TouchableOpacity
           testID="pd-add-btn"
-          style={styles.primaryBtn}
-          onPress={() => {
-            for (let i = 0; i < qty; i++) addItem({ id: p.id, title: p.title, price: p.price, image: p.images[0] });
-            router.push("/(tabs)/cart");
-          }}
+          style={[styles.primaryBtn, !p.inStock && { opacity: 0.5 }]}
+          onPress={handleAddToCart}
           disabled={!p.inStock}
+          activeOpacity={0.85}
         >
           <Text style={styles.primaryTxt}>أضف إلى السلة · {(p.price * qty).toFixed(0)} ر.س</Text>
         </TouchableOpacity>

@@ -1,14 +1,38 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Mail, ChevronRight } from "lucide-react-native";
+import { Mail, ChevronRight, AlertCircle } from "lucide-react-native";
 import { colors, spacing, radius } from "../../src/theme/theme";
 
 export default function Forgot() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    setError(null);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setError("يرجى إدخال البريد الإلكتروني");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setError("صيغة بريد إلكتروني غير صحيحة");
+      return;
+    }
+    setLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setSent(true);
+    } catch (err: any) {
+      setError(err?.message || "تعذّر إرسال الرابط، يرجى المحاولة لاحقاً.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -46,12 +70,24 @@ export default function Forgot() {
             </View>
           )}
 
+          {error && (
+            <View style={styles.errBox}>
+              <AlertCircle size={14} color={colors.error} />
+              <Text style={styles.errTxt}>{error}</Text>
+            </View>
+          )}
+
           <TouchableOpacity
             testID="forgot-submit-btn"
-            style={styles.primaryBtn}
-            onPress={() => setSent(true)}
+            style={[styles.primaryBtn, loading && { opacity: 0.7 }]}
+            onPress={submit}
+            disabled={loading}
           >
-            <Text style={styles.primaryTxt}>إرسال الرابط</Text>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryTxt}>إرسال الرابط</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity testID="forgot-login-link" onPress={() => router.push("/auth/login")} style={{ alignItems: "center", marginTop: spacing.lg }}>
@@ -86,5 +122,7 @@ const styles = StyleSheet.create({
   primaryTxt: { color: "#fff", fontSize: 16, fontWeight: "700" },
   okBox: { backgroundColor: "#D1FAE5", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
   okTxt: { color: colors.success, fontSize: 13, fontWeight: "700", textAlign: "right" },
+  errBox: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", padding: spacing.md, borderRadius: radius.md, marginTop: spacing.lg },
+  errTxt: { color: colors.error, fontSize: 13, fontWeight: "700", flex: 1, textAlign: "right" },
   footerLink: { color: colors.accent, fontSize: 14, fontWeight: "700" },
 });

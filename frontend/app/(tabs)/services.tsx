@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Search, SlidersHorizontal } from "lucide-react-native";
@@ -36,7 +36,11 @@ export default function Services() {
             style={styles.search}
           />
         </View>
-        <TouchableOpacity testID="services-filter-btn" style={styles.filterBtn}>
+        <TouchableOpacity
+          testID="services-filter-btn"
+          style={styles.filterBtn}
+          onPress={() => Alert.alert("الفلاتر", "خيارات الفلترة المتقدمة قيد التطوير وستتوفر قريباً.")}
+        >
           <SlidersHorizontal size={18} color={colors.textMain} />
         </TouchableOpacity>
       </View>

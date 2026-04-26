@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ChevronLeft, Package, Calendar, MapPin, Settings as Sett, CreditCard, Globe, HelpCircle, LogOut, Star, Edit3 } from "lucide-react-native";
@@ -18,6 +18,11 @@ const menu = [
 
 export default function Profile() {
   const router = useRouter();
+
+  const handleMenuPress = (label: string) => {
+    Alert.alert(label, "هذه الميزة قيد التطوير وستتوفر قريباً.");
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
@@ -35,7 +40,11 @@ export default function Profile() {
               <Text style={styles.email}>ahmed@example.com</Text>
               <Text style={styles.phone}>+966 5xxxxxxxx</Text>
             </View>
-            <TouchableOpacity testID="edit-profile-btn" style={styles.editBtn}>
+            <TouchableOpacity
+              testID="edit-profile-btn"
+              style={styles.editBtn}
+              onPress={() => handleMenuPress("تعديل الملف الشخصي")}
+            >
               <Edit3 size={16} color={colors.textMain} />
             </TouchableOpacity>
           </View>
@@ -55,6 +64,7 @@ export default function Profile() {
               key={m.id}
               testID={`profile-menu-${m.id}`}
               activeOpacity={0.7}
+              onPress={() => handleMenuPress(m.label)}
               style={[styles.menuItem, i !== menu.length - 1 && styles.menuDivider]}
             >
               <View style={[styles.menuIcon, { backgroundColor: m.bg }]}>

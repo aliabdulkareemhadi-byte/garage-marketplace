@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Alert, Share, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Star, MapPin, Phone, ChevronRight, Share2, Heart, Clock, CheckCircle2 } from "lucide-react-native";
@@ -10,6 +10,37 @@ export default function WorkshopProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const w = workshops.find((x) => x.id === id) || workshops[0];
+  const [favorite, setFavorite] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: w.name,
+        message: `${w.name}\n${w.area} · ${w.city}`,
+      });
+    } catch (err: any) {
+      Alert.alert("تعذّر المشاركة", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
+  const handleFavorite = () => {
+    setFavorite((f) => !f);
+    Alert.alert(favorite ? "تمت الإزالة من المفضلة" : "تمت الإضافة إلى المفضلة", w.name);
+  };
+
+  const handleCall = async () => {
+    const url = "tel:+966114567890";
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        Alert.alert("تعذّر الاتصال", "خدمة الاتصال غير متاحة على هذا الجهاز.");
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err: any) {
+      Alert.alert("تعذّر الاتصال", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -22,8 +53,12 @@ export default function WorkshopProfile() {
               <ChevronRight size={20} color="#fff" />
             </TouchableOpacity>
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
-              <TouchableOpacity style={styles.topBtn}><Share2 size={18} color="#fff" /></TouchableOpacity>
-              <TouchableOpacity style={styles.topBtn}><Heart size={18} color="#fff" /></TouchableOpacity>
+              <TouchableOpacity testID="wp-share" style={styles.topBtn} onPress={handleShare}>
+                <Share2 size={18} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity testID="wp-favorite" style={styles.topBtn} onPress={handleFavorite}>
+                <Heart size={18} color="#fff" fill={favorite ? "#fff" : "transparent"} />
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </View>
@@ -93,7 +128,7 @@ export default function WorkshopProfile() {
       </ScrollView>
 
       <SafeAreaView edges={["bottom"]} style={styles.footer}>
-        <TouchableOpacity style={styles.callBtn}>
+        <TouchableOpacity testID="wp-call-btn" style={styles.callBtn} onPress={handleCall}>
           <Phone size={18} color={colors.textMain} />
         </TouchableOpacity>
         <TouchableOpacity

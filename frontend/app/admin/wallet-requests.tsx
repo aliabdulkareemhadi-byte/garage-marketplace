@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -111,6 +112,7 @@ export default function AdminWalletRequests() {
   const { wallet } = useWallet();
 
   const [requests, setRequests] = useState<TopUpRequest[]>(MOCK_REQUESTS);
+  const [processing, setProcessing] = useState<Record<string, RequestStatus | undefined>>({});
 
   // Load real requests from Firestore; fall back to mock if empty/unreachable.
   useEffect(() => {
@@ -131,23 +133,41 @@ export default function AdminWalletRequests() {
 
   const pendingCount = requests.filter((r) => r.status === "pending").length;
 
-  const onApprove = (req: TopUpRequest) => {
-    // Per spec: approve updates status only — no balance logic.
+  const updateStatus = async (req: TopUpRequest, next: RequestStatus) => {
+    if (processing[req.id]) return;
+    setProcessing((prev) => ({ ...prev, [req.id]: next }));
+    const previousStatus = req.status;
     setRequests((prev) =>
-      prev.map((r) => (r.id === req.id ? { ...r, status: "approved" } : r))
+      prev.map((r) => (r.id === req.id ? { ...r, status: next } : r))
     );
-    // Best-effort Firestore sync.
-    updateTopUpRequestStatus(req.id, "approved").catch(() => {});
-    Alert.alert("تم قبول الطلب", `تم تحديث حالة الطلب إلى مقبول.`);
+    try {
+      await updateTopUpRequestStatus(req.id, next);
+      Alert.alert(
+        next === "approved" ? "تم قبول الطلب" : "تم رفض الطلب",
+        next === "approved"
+          ? "تم تحديث حالة الطلب إلى مقبول."
+          : "تم تحديث حالة الطلب إلى مرفوض.",
+      );
+    } catch (err: any) {
+      // Roll back optimistic update on failure.
+      setRequests((prev) =>
+        prev.map((r) => (r.id === req.id ? { ...r, status: previousStatus } : r))
+      );
+      Alert.alert(
+        "تعذّر تحديث الطلب",
+        err?.message || "حدث خطأ أثناء حفظ الحالة، يرجى المحاولة مرة أخرى.",
+      );
+    } finally {
+      setProcessing((prev) => {
+        const copy = { ...prev };
+        delete copy[req.id];
+        return copy;
+      });
+    }
   };
 
-  const onReject = (req: TopUpRequest) => {
-    setRequests((prev) =>
-      prev.map((r) => (r.id === req.id ? { ...r, status: "rejected" } : r))
-    );
-    updateTopUpRequestStatus(req.id, "rejected").catch(() => {});
-    Alert.alert("تم رفض الطلب", "تم تحديث حالة الطلب إلى مرفوض.");
-  };
+  const onApprove = (req: TopUpRequest) => updateStatus(req, "approved");
+  const onReject = (req: TopUpRequest) => updateStatus(req, "rejected");
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -230,19 +250,35 @@ export default function AdminWalletRequests() {
                 <View style={styles.actions}>
                   <TouchableOpacity
                     testID={`admin-approve-${item.id}`}
-                    style={styles.approveBtn}
+                    style={[styles.approveBtn, processing[item.id] && { opacity: 0.6 }]}
                     onPress={() => onApprove(item)}
+                    disabled={!!processing[item.id]}
+                    activeOpacity={0.85}
                   >
-                    <CheckCircle2 size={14} color="#fff" />
-                    <Text style={styles.approveTxt}>قبول</Text>
+                    {processing[item.id] === "approved" ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <>
+                        <CheckCircle2 size={14} color="#fff" />
+                        <Text style={styles.approveTxt}>قبول</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity
                     testID={`admin-reject-${item.id}`}
-                    style={styles.rejectBtn}
+                    style={[styles.rejectBtn, processing[item.id] && { opacity: 0.6 }]}
                     onPress={() => onReject(item)}
+                    disabled={!!processing[item.id]}
+                    activeOpacity={0.85}
                   >
-                    <XCircle size={14} color={colors.error} />
-                    <Text style={styles.rejectTxt}>رفض</Text>
+                    {processing[item.id] === "rejected" ? (
+                      <ActivityIndicator color={colors.error} size="small" />
+                    ) : (
+                      <>
+                        <XCircle size={14} color={colors.error} />
+                        <Text style={styles.rejectTxt}>رفض</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 </View>
               ) : null}

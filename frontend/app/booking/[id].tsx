@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Car, Calendar, Clock, CheckCircle2, MapPin } from "lucide-react-native";
@@ -25,6 +25,26 @@ export default function Booking() {
   const [date, setDate] = useState(dates[0].key);
   const [time, setTime] = useState("10:30 ص");
   const [step] = useState(1);
+  const [confirming, setConfirming] = useState(false);
+
+  const confirmBooking = async () => {
+    if (confirming) return;
+    if (!vehicle || !date || !time) {
+      Alert.alert("بيانات ناقصة", "يرجى اختيار المركبة والتاريخ والوقت قبل التأكيد.");
+      return;
+    }
+    setConfirming(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      Alert.alert("تم تأكيد الحجز", `تم حجز موعدك بنجاح: ${date} - ${time}`, [
+        { text: "حسناً", onPress: () => router.replace("/(tabs)/home") },
+      ]);
+    } catch (err: any) {
+      Alert.alert("تعذّر تأكيد الحجز", err?.message || "حدث خطأ غير متوقّع، يرجى المحاولة مرة أخرى.");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const vehicles = [
     { id: "car1", name: "تويوتا كامري 2022", plate: "أ ب ج - 1234" },
@@ -92,7 +112,11 @@ export default function Booking() {
               </View>
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.addVehicle}>
+          <TouchableOpacity
+            testID="bk-add-vehicle"
+            style={styles.addVehicle}
+            onPress={() => Alert.alert("إضافة مركبة", "هذه الميزة قيد التطوير وستتوفر قريباً.")}
+          >
             <Text style={styles.addVehicleTxt}>+ إضافة مركبة جديدة</Text>
           </TouchableOpacity>
         </View>
@@ -143,13 +167,16 @@ export default function Booking() {
         </View>
         <TouchableOpacity
           testID="confirm-booking-btn"
-          style={styles.primaryBtn}
-          onPress={() => {
-            alert(`تم تأكيد الحجز\n${date} - ${time}`);
-            router.replace("/(tabs)/home");
-          }}
+          style={[styles.primaryBtn, confirming && { opacity: 0.7 }]}
+          onPress={confirmBooking}
+          disabled={confirming}
+          activeOpacity={0.85}
         >
-          <Text style={styles.primaryTxt}>تأكيد الحجز</Text>
+          {confirming ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.primaryTxt}>تأكيد الحجز</Text>
+          )}
         </TouchableOpacity>
       </SafeAreaView>
     </View>

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Alert, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Star, MapPin, Wrench, Edit3, LogOut, Clock, Calendar, TrendingUp, DollarSign, Phone, MessageCircle, CheckCircle2, Trophy, Share2, Bell, Wallet as WalletIcon, Megaphone } from "lucide-react-native";
@@ -24,6 +24,20 @@ export default function WorkshopProfile() {
 
   const doLogout = () => { logout(); router.replace("/"); };
 
+  const comingSoon = (title: string) =>
+    Alert.alert(title, "هذه الميزة قيد التطوير وستتوفر قريباً.");
+
+  const handleShareWorkshop = async () => {
+    try {
+      await Share.share({
+        title: ws.name,
+        message: `${ws.name}\n${ws.area} · ${ws.city}`,
+      });
+    } catch (err: any) {
+      Alert.alert("تعذّر المشاركة", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
@@ -32,7 +46,12 @@ export default function WorkshopProfile() {
             <Text style={styles.hi}>لوحة تحكم الورشة</Text>
             <Text style={styles.title}>{session?.name || ws.name}</Text>
           </View>
-          <TouchableOpacity testID="notif-btn" style={styles.bellBtn}>
+          <TouchableOpacity
+            testID="notif-btn"
+            style={styles.bellBtn}
+            onPress={() => router.push("/(tabs)/notifications")}
+            activeOpacity={0.7}
+          >
             <Bell size={18} color={colors.textMain} />
             <View style={styles.dot} />
           </TouchableOpacity>
@@ -44,8 +63,12 @@ export default function WorkshopProfile() {
             <Image source={{ uri: ws.image }} style={styles.cover} />
             <View style={styles.coverOverlay} />
             <View style={styles.coverActions}>
-              <TouchableOpacity style={styles.coverActBtn}><Share2 size={14} color="#fff" /></TouchableOpacity>
-              <TouchableOpacity testID="edit-cover-btn" style={styles.coverActBtn}><Edit3 size={14} color="#fff" /></TouchableOpacity>
+              <TouchableOpacity testID="cover-share-btn" style={styles.coverActBtn} onPress={handleShareWorkshop} activeOpacity={0.7}>
+                <Share2 size={14} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity testID="edit-cover-btn" style={styles.coverActBtn} onPress={() => comingSoon("تغيير صورة الغلاف")} activeOpacity={0.7}>
+                <Edit3 size={14} color="#fff" />
+              </TouchableOpacity>
             </View>
             <View style={styles.coverBottom}>
               <View style={styles.nameRow}>
@@ -69,7 +92,12 @@ export default function WorkshopProfile() {
             </View>
           </View>
 
-          <TouchableOpacity testID="edit-profile-btn" style={styles.editCTA}>
+          <TouchableOpacity
+            testID="edit-profile-btn"
+            style={styles.editCTA}
+            onPress={() => comingSoon("تعديل معلومات الورشة")}
+            activeOpacity={0.8}
+          >
             <Edit3 size={14} color={colors.textMain} />
             <Text style={styles.editCTATxt}>تعديل معلومات الورشة</Text>
           </TouchableOpacity>
@@ -141,7 +169,9 @@ export default function WorkshopProfile() {
         {/* Description */}
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>نبذة عن الورشة</Text>
-          <TouchableOpacity><Text style={styles.sectionAction}>تعديل</Text></TouchableOpacity>
+          <TouchableOpacity testID="edit-desc-btn" onPress={() => comingSoon("تعديل النبذة")} activeOpacity={0.7}>
+            <Text style={styles.sectionAction}>تعديل</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.card}>
           <Text style={styles.desc}>

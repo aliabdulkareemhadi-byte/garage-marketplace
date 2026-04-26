@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react-native";
@@ -160,10 +160,18 @@ export default function Login() {
           </View>
 
           <View style={{ gap: spacing.md }}>
-            <TouchableOpacity testID="login-google-btn" style={styles.socialBtn}>
+            <TouchableOpacity
+              testID="login-google-btn"
+              style={styles.socialBtn}
+              onPress={() => Alert.alert("تسجيل الدخول عبر Google", "هذه الميزة قيد التطوير وستتوفر قريباً.")}
+            >
               <Text style={styles.socialTxt}>متابعة عبر Google</Text>
             </TouchableOpacity>
-            <TouchableOpacity testID="login-apple-btn" style={styles.socialBtn}>
+            <TouchableOpacity
+              testID="login-apple-btn"
+              style={styles.socialBtn}
+              onPress={() => Alert.alert("تسجيل الدخول عبر Apple", "هذه الميزة قيد التطوير وستتوفر قريباً.")}
+            >
               <Text style={styles.socialTxt}>متابعة عبر Apple</Text>
             </TouchableOpacity>
           </View>

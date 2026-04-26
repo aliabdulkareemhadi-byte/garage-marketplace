@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Alert, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Star, MapPin, Package, Building2, Edit3, LogOut, CheckCircle2, TrendingUp, ShoppingBag, Phone, MessageCircle, Clock, DollarSign, Trophy, Share2, Bell, Megaphone } from "lucide-react-native";
@@ -23,6 +23,20 @@ export default function CompanyProfile() {
 
   const doLogout = () => { logout(); router.replace("/"); };
 
+  const comingSoon = (title: string) =>
+    Alert.alert(title, "هذه الميزة قيد التطوير وستتوفر قريباً.");
+
+  const handleShareCompany = async () => {
+    try {
+      await Share.share({
+        title: company.name,
+        message: `${company.name}\n${company.category} · ${company.city}`,
+      });
+    } catch (err: any) {
+      Alert.alert("تعذّر المشاركة", err?.message || "حدث خطأ غير متوقّع.");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
@@ -32,7 +46,12 @@ export default function CompanyProfile() {
             <Text style={styles.hi}>لوحة تحكم الشركة</Text>
             <Text style={styles.title}>{session?.name || company.name}</Text>
           </View>
-          <TouchableOpacity testID="notif-btn" style={styles.bellBtn}>
+          <TouchableOpacity
+            testID="notif-btn"
+            style={styles.bellBtn}
+            onPress={() => router.push("/(tabs)/notifications")}
+            activeOpacity={0.7}
+          >
             <Bell size={18} color={colors.textMain} />
             <View style={styles.dot} />
           </TouchableOpacity>
@@ -44,10 +63,10 @@ export default function CompanyProfile() {
             <Image source={{ uri: company.cover }} style={styles.cover} />
             <View style={styles.coverOverlay} />
             <View style={styles.coverActions}>
-              <TouchableOpacity style={styles.coverActBtn}>
+              <TouchableOpacity testID="cover-share-btn" style={styles.coverActBtn} onPress={handleShareCompany} activeOpacity={0.7}>
                 <Share2 size={14} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity testID="edit-cover-btn" style={styles.coverActBtn}>
+              <TouchableOpacity testID="edit-cover-btn" style={styles.coverActBtn} onPress={() => comingSoon("تغيير صورة الغلاف")} activeOpacity={0.7}>
                 <Edit3 size={14} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -77,7 +96,12 @@ export default function CompanyProfile() {
             </View>
           </View>
 
-          <TouchableOpacity testID="edit-profile-btn" style={styles.editCTA}>
+          <TouchableOpacity
+            testID="edit-profile-btn"
+            style={styles.editCTA}
+            onPress={() => comingSoon("تعديل معلومات الشركة")}
+            activeOpacity={0.8}
+          >
             <Edit3 size={14} color={colors.textMain} />
             <Text style={styles.editCTATxt}>تعديل معلومات الشركة</Text>
           </TouchableOpacity>
@@ -157,7 +181,9 @@ export default function CompanyProfile() {
         {/* Description */}
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>نبذة عن الشركة</Text>
-          <TouchableOpacity><Text style={styles.sectionAction}>تعديل</Text></TouchableOpacity>
+          <TouchableOpacity testID="edit-desc-btn" onPress={() => comingSoon("تعديل النبذة")} activeOpacity={0.7}>
+            <Text style={styles.sectionAction}>تعديل</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.card}>
           <Text style={styles.desc}>{company.description}</Text>
@@ -166,7 +192,9 @@ export default function CompanyProfile() {
         {/* Services / business tags */}
         <View style={styles.sectionHead}>
           <Text style={styles.sectionTitle}>الخدمات والتخصصات</Text>
-          <TouchableOpacity><Text style={styles.sectionAction}>تعديل</Text></TouchableOpacity>
+          <TouchableOpacity testID="edit-services-btn" onPress={() => comingSoon("تعديل الخدمات والتخصصات")} activeOpacity={0.7}>
+            <Text style={styles.sectionAction}>تعديل</Text>
+          </TouchableOpacity>
         </View>
         <View style={styles.card}>
           <View style={styles.tagsWrap}>
@@ -176,7 +204,12 @@ export default function CompanyProfile() {
                 <Text style={styles.tagTxt}>{s}</Text>
               </View>
             ))}
-            <TouchableOpacity style={styles.addTag}>
+            <TouchableOpacity
+              testID="add-tag-btn"
+              style={styles.addTag}
+              onPress={() => comingSoon("إضافة تخصص جديد")}
+              activeOpacity={0.7}
+            >
               <Text style={styles.addTagTxt}>+ إضافة</Text>
             </TouchableOpacity>
           </View>
