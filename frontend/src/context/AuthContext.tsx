@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -136,13 +137,21 @@ function mapAuthError(err: any): string {
 
 /**
  * Read the Firestore user document for `uid`.
- * Returns null on any error so callers can fall back to the cache.
+ * Returns null when the document doesn't exist OR on any read error.
+ * Errors are logged so they are visible in the Expo / Metro console.
  */
 async function readUserDoc(uid: string): Promise<UserDoc | null> {
   try {
     const snap = await getDoc(doc(db, "users", uid));
-    return snap.exists() ? (snap.data() as UserDoc) : null;
-  } catch {
+    if (!snap.exists()) {
+      console.log("[AuthContext] readUserDoc — no document for uid:", uid);
+      return null;
+    }
+    const data = snap.data() as UserDoc;
+    console.log("[AuthContext] readUserDoc — uid:", uid, "role:", data.role);
+    return data;
+  } catch (err: any) {
+    console.error("[AuthContext] readUserDoc FAILED — uid:", uid, "code:", err?.code, "message:", err?.message);
     return null;
   }
 }
@@ -206,6 +215,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearError = useCallback(() => setError(null), []);
 
+  /**
+   * Set to true while login() / register() / loginWithGoogle() is running.
+   *
+   * Problem this solves:
+   * After signInWithEmailAndPassword (or createUserWithEmailAndPassword) the
+   * Firebase SDK immediately fires onAuthStateChanged as a concurrent async
+   * chain.  Both login() and onAuthStateChanged call setSession().  Whichever
+   * resolves last wins.  If onAuthStateChanged resolves AFTER login() and reads
+   * a stale AsyncStorage cache from a previous session (e.g. role "customer"),
+   * it overwrites the correct role ("company") that login() just set.
+   *
+   * Fix: when an interactive auth function owns the session, onAuthStateChanged
+   * skips its setSession call entirely.  The auth function is responsible for
+   * calling setSession with the correct data.  On app restart (cold start),
+   * authInProgress is false so onAuthStateChanged proceeds normally.
+   */
+  const authInProgress = useRef(false);
+
   // ------------------------------------------------------------------
   // Auth-state listener — single source of session truth on cold start
   // ------------------------------------------------------------------
@@ -213,7 +240,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (user) => {
       try {
         if (!user) {
+          // Always handle sign-out, even during an in-progress auth action.
           setSession(null);
+          return;
+        }
+
+        // login() / register() / loginWithGoogle() is already handling this
+        // sign-in event and will call setSession() with the verified role.
+        // Skip to avoid overwriting it with a potentially stale cached role.
+        if (authInProgress.current) {
+          console.log("[AuthContext] onAuthStateChanged — skipped (authInProgress)");
           return;
         }
 
@@ -235,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role = cached.role;
             name = cached.name;
             entityId = cached.entityId;
+            console.log("[AuthContext] onAuthStateChanged — using cached role:", role);
             // Best-effort: recreate the missing Firestore document from cache.
             writeUserDoc(
               user.uid,
@@ -253,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!role) {
           // Authenticated in Firebase but no user document found anywhere.
           // Cannot determine role → treat as unauthenticated.
+          console.warn("[AuthContext] onAuthStateChanged — role not found, clearing session");
           setSession(null);
           return;
         }
@@ -260,6 +298,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Keep cache in sync for next offline session.
         await cacheMeta(user.uid, { role, name, entityId });
 
+        console.log("[AuthContext] onAuthStateChanged — setSession role:", role);
         setSession({
           role,
           name,
@@ -280,6 +319,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ------------------------------------------------------------------
   const login = useCallback<AuthCtx["login"]>(
     async (role, email, password, name, entityId) => {
+      // Claim ownership of the session so onAuthStateChanged doesn't race us.
+      authInProgress.current = true;
       try {
         const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
 
@@ -323,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           entityId: finalEntityId,
         });
 
+        console.log("[AuthContext] login() — setSession role:", finalRole);
         setSession({
           role: finalRole,
           name: finalName,
@@ -335,6 +377,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const msg = mapAuthError(err);
         setError(msg);
         throw new Error(msg);
+      } finally {
+        authInProgress.current = false;
       }
     },
     []
@@ -345,6 +389,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ------------------------------------------------------------------
   const register = useCallback<AuthCtx["register"]>(
     async (role, email, password, name, entityId) => {
+      // Claim ownership of the session so onAuthStateChanged doesn't race us.
+      authInProgress.current = true;
       try {
         const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
         const finalName = name?.trim() || email.split("@")[0];
@@ -374,6 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await cacheMeta(cred.user.uid, { role, name: finalName, entityId });
 
         // Log the user in immediately — no email verification required.
+        console.log("[AuthContext] register() — setSession role:", role);
         setSession({
           role,
           name: finalName,
@@ -386,6 +433,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const msg = mapAuthError(err);
         setError(msg);
         throw new Error(msg);
+      } finally {
+        authInProgress.current = false;
       }
     },
     []
@@ -396,6 +445,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ------------------------------------------------------------------
   const loginWithGoogle = useCallback<AuthCtx["loginWithGoogle"]>(
     async (idToken, accessToken) => {
+      // Claim ownership of the session so onAuthStateChanged doesn't race us.
+      authInProgress.current = true;
       try {
         const credential = GoogleAuthProvider.credential(idToken, accessToken);
         const cred = await signInWithCredential(auth, credential);
@@ -435,6 +486,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           entityId: finalEntityId,
         });
 
+        console.log("[AuthContext] loginWithGoogle() — setSession role:", finalRole);
         setSession({
           role: finalRole,
           name: finalName,
@@ -447,6 +499,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const msg = mapAuthError(err);
         setError(msg);
         throw new Error(msg);
+      } finally {
+        authInProgress.current = false;
       }
     },
     []
