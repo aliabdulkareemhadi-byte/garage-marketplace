@@ -31,7 +31,7 @@
  */
 
 export const GOOGLE_CLIENT_IDS = {
-  webClientId: "REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com",
+  webClientId: "473466820687-q58fhdmll0tp0s725r2u0020gpo0po6l.apps.googleusercontent.com",
   iosClientId: "REPLACE_WITH_IOS_CLIENT_ID.apps.googleusercontent.com",
   androidClientId: "REPLACE_WITH_ANDROID_CLIENT_ID.apps.googleusercontent.com",
 } as const;
