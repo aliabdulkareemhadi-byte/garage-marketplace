@@ -8,7 +8,9 @@ import React, {
 } from "react";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
   updateProfile,
@@ -88,6 +90,15 @@ type AuthCtx = {
     name: string,
     entityId?: string
   ) => Promise<void>;
+  /**
+   * Sign in (or register) with a Google credential.
+   * Pass the idToken from expo-auth-session's Google provider response.
+   * accessToken is optional but can improve profile data retrieval.
+   *
+   * New users are created as "customer" role by default.
+   * Existing users retain their stored role from Firestore.
+   */
+  loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<void>;
   logout: () => Promise<void>;
   /** No-op stub — email verification removed. Kept for API compatibility. */
   resendVerification: () => Promise<void>;
@@ -116,6 +127,8 @@ function mapAuthError(err: any): string {
       return "محاولات كثيرة، يرجى المحاولة لاحقاً";
     case "auth/network-request-failed":
       return "تعذّر الاتصال بالخادم، تحقّق من الإنترنت";
+    case "auth/account-exists-with-different-credential":
+      return "هذا البريد مرتبط بطريقة تسجيل دخول أخرى، يرجى المحاولة بها";
     default:
       return err?.message || "حدث خطأ غير متوقّع";
   }
@@ -379,6 +392,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   // ------------------------------------------------------------------
+  // loginWithGoogle
+  // ------------------------------------------------------------------
+  const loginWithGoogle = useCallback<AuthCtx["loginWithGoogle"]>(
+    async (idToken, accessToken) => {
+      try {
+        const credential = GoogleAuthProvider.credential(idToken, accessToken);
+        const cred = await signInWithCredential(auth, credential);
+
+        // Check if this user already has a Firestore document.
+        const fsDoc = await readUserDoc(cred.user.uid);
+        const isNew = !fsDoc;
+
+        // Resolve name: prefer Firestore → Google displayName → email prefix.
+        const finalName =
+          fsDoc?.name ||
+          cred.user.displayName ||
+          cred.user.email?.split("@")[0] ||
+          "";
+
+        // Preserve existing role for returning users; default new users to "customer".
+        const finalRole: UserRole = fsDoc?.role ?? "customer";
+        const finalEntityId = fsDoc?.entityId;
+
+        // Create or update the Firestore document.
+        // Non-fatal: session is still set even if the write fails.
+        await writeUserDoc(
+          cred.user.uid,
+          {
+            uid: cred.user.uid,
+            email: cred.user.email ?? "",
+            name: finalName,
+            role: finalRole,
+            entityId: finalEntityId,
+          },
+          { isCreate: isNew }
+        ).catch(() => {});
+
+        await cacheMeta(cred.user.uid, {
+          role: finalRole,
+          name: finalName,
+          entityId: finalEntityId,
+        });
+
+        setSession({
+          role: finalRole,
+          name: finalName,
+          email: cred.user.email ?? "",
+          entityId: finalEntityId,
+          uid: cred.user.uid,
+          emailVerified: true,
+        });
+      } catch (err: any) {
+        const msg = mapAuthError(err);
+        setError(msg);
+        throw new Error(msg);
+      }
+    },
+    []
+  );
+
+  // ------------------------------------------------------------------
   // logout
   // ------------------------------------------------------------------
   const logout = useCallback<AuthCtx["logout"]>(async () => {
@@ -406,7 +480,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ session, loading, error, clearError, login, register, logout, resendVerification }}
+      value={{
+        session,
+        loading,
+        error,
+        clearError,
+        login,
+        register,
+        loginWithGoogle,
+        logout,
+        resendVerification,
+      }}
     >
       {children}
     </Ctx.Provider>
