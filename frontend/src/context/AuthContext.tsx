@@ -9,8 +9,6 @@ import React, {
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
-  reload,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   signOut as fbSignOut,
   updateProfile,
@@ -32,8 +30,8 @@ import type { Session, UserRole } from "../data/mockData";
  * (doc id = firebase uid). AsyncStorage is kept ONLY as an offline cache/fallback
  * in case the Firestore read fails (network, permissions, first-run race).
  *
- * Public API is unchanged from the previous Firebase-only version; callers do
- * not need to change.
+ * Email verification is not required — users are logged in immediately after
+ * registration.
  */
 
 type SessionMeta = { role: UserRole; name: string; entityId?: string };
@@ -46,13 +44,15 @@ type UserDoc = {
   role: UserRole;
   entityId?: string;
   emailVerified: boolean;
-  createdAt?: any; // firestore Timestamp on read, serverTimestamp() sentinel on write
+  createdAt?: any;
   updatedAt?: any;
 };
 
 type AuthCtx = {
   session: Session | null;
   loading: boolean;
+  error: string | null;
+  clearError: () => void;
   login: (
     role: UserRole,
     email: string,
@@ -100,7 +100,6 @@ async function readUserDoc(uid: string): Promise<UserDoc | null> {
     const snap = await getDoc(doc(db, "users", uid));
     return snap.exists() ? (snap.data() as UserDoc) : null;
   } catch {
-    // Network / permission error → let caller fall back to cache.
     return null;
   }
 }
@@ -111,7 +110,6 @@ async function writeUserDoc(
   opts: { isCreate?: boolean } = {}
 ): Promise<void> {
   const ref = doc(db, "users", uid);
-  // Firestore rejects `undefined` field values — strip them before writing.
   const cleaned: Record<string, any> = {};
   for (const [k, v] of Object.entries(data)) {
     if (v !== undefined) cleaned[k] = v;
@@ -144,18 +142,18 @@ async function readCachedMeta(uid: string): Promise<SessionMeta | null> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Rehydrate whenever Firebase auth state changes.
-  // Firestore is the source of truth; AsyncStorage is a fallback cache.
+  const clearError = useCallback(() => setError(null), []);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       try {
-        if (!user || !user.emailVerified) {
+        if (!user) {
           setSession(null);
           return;
         }
 
-        // Primary: Firestore
         let role: UserRole | null = null;
         let name = "";
         let entityId: string | undefined;
@@ -165,18 +163,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           role = fsDoc.role;
           name = fsDoc.name || user.displayName || user.email || "";
           entityId = fsDoc.entityId;
-          // Keep emailVerified in Firestore in sync; best-effort.
-          if (fsDoc.emailVerified !== true) {
-            writeUserDoc(user.uid, { emailVerified: true }).catch(() => {});
-          }
         } else {
-          // Fallback: AsyncStorage cache (offline / legacy / first-run race)
           const cached = await readCachedMeta(user.uid);
           if (cached) {
             role = cached.role;
             name = cached.name;
             entityId = cached.entityId;
-            // Best-effort: create the missing Firestore doc from the cache.
             writeUserDoc(
               user.uid,
               {
@@ -193,12 +185,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!role) {
-          // Verified user but no profile metadata anywhere → treat as unauth.
           setSession(null);
           return;
         }
 
-        // Refresh cache.
         await cacheMeta(user.uid, { role, name, entityId });
 
         setSession({
@@ -224,13 +214,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email.trim(),
           password
         );
-        await reload(cred.user);
-        if (!cred.user.emailVerified) {
-          await fbSignOut(auth).catch(() => {});
-          throw new Error("يرجى تأكيد البريد الإلكتروني أولاً");
-        }
 
-        // Firestore is the source of truth — prefer its values over passed args.
         const fsDoc = await readUserDoc(cred.user.uid);
 
         let finalRole: UserRole;
@@ -242,14 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           finalName =
             fsDoc.name || name?.trim() || cred.user.displayName || email;
           finalEntityId = fsDoc.entityId ?? entityId;
-          // Best-effort: sync emailVerified flag if Firestore is stale.
-          if (fsDoc.emailVerified !== true) {
-            writeUserDoc(cred.user.uid, { emailVerified: true }).catch(
-              () => {}
-            );
-          }
         } else {
-          // Safety net: legacy / pre-Firestore user — create the doc now.
           finalRole = role;
           finalName =
             name?.trim() || cred.user.displayName || email.split("@")[0];
@@ -283,8 +260,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           emailVerified: true,
         });
       } catch (err: any) {
-        if (err?.message === "يرجى تأكيد البريد الإلكتروني أولاً") throw err;
-        throw new Error(mapAuthError(err));
+        const msg = mapAuthError(err);
+        setError(msg);
+        throw new Error(msg);
       }
     },
     []
@@ -306,8 +284,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
         }
 
-        // Create Firestore user profile while still authenticated as this user
-        // (rules typically require request.auth.uid == userId for writes).
         await writeUserDoc(
           cred.user.uid,
           {
@@ -316,26 +292,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             name: finalName,
             role,
             entityId,
-            emailVerified: false,
+            emailVerified: true,
           },
           { isCreate: true }
         );
 
-        // Cache locally as backup for offline first-login.
         await cacheMeta(cred.user.uid, {
           role,
           name: finalName,
           entityId,
         });
 
-        // Send verification email.
-        await sendEmailVerification(cred.user);
-
-        // Force sign-out: user must verify before they can access the app.
-        await fbSignOut(auth).catch(() => {});
-        setSession(null);
+        setSession({
+          role,
+          name: finalName,
+          email: cred.user.email ?? email.trim(),
+          entityId,
+          uid: cred.user.uid,
+          emailVerified: true,
+        });
       } catch (err: any) {
-        throw new Error(mapAuthError(err));
+        const msg = mapAuthError(err);
+        setError(msg);
+        throw new Error(msg);
       }
     },
     []
@@ -344,6 +323,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback<AuthCtx["logout"]>(async () => {
     try {
       await fbSignOut(auth);
+    } catch (err: any) {
+      const msg = mapAuthError(err);
+      setError(msg);
+      throw new Error(msg);
     } finally {
       setSession(null);
     }
@@ -352,20 +335,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resendVerification = useCallback<
     AuthCtx["resendVerification"]
   >(async () => {
-    const u = auth.currentUser;
-    if (!u) {
-      throw new Error("لا يوجد مستخدم حالي لإعادة إرسال التأكيد");
-    }
-    try {
-      await sendEmailVerification(u);
-    } catch (err: any) {
-      throw new Error(mapAuthError(err));
-    }
+    // Email verification removed — this is a no-op stub kept for API compatibility.
   }, []);
 
   return (
     <Ctx.Provider
-      value={{ session, loading, login, register, logout, resendVerification }}
+      value={{ session, loading, error, clearError, login, register, logout, resendVerification }}
     >
       {children}
     </Ctx.Provider>
