@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Stack, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments, type Href } from "expo-router";
 import { I18nManager, View, ActivityIndicator, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -46,7 +46,7 @@ function AuthGuard() {
       segments[0] === "admin";
 
     if (session && inAuthOrSplash) {
-      router.replace(roleHome(session.role) as any);
+      router.replace(roleHome(session.role) as Href);
     } else if (!session && inProtected) {
       router.replace("/");
     }
