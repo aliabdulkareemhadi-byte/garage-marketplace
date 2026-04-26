@@ -1,12 +1,14 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { Tag, Plus, Edit3, Trash2, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
-import { companyOffers as seed, type CompanyOffer, type CompanyOfferState } from "../../src/data/mockData";
+import { type CompanyOffer, type CompanyOfferState } from "../../src/data/mockData";
 import EmptyState from "../../src/components/EmptyState";
 import FilterTabs from "../../src/components/FilterTabs";
+import { useAuth } from "../../src/context/AuthContext";
+import { listOffers, deleteOffer } from "../../src/services/companyOffers";
 
 const stateMeta: Record<CompanyOfferState, { bg: string; fg: string; icon: React.ReactNode }> = {
   "نشط": { bg: "#D1FAE5", fg: "#10B981", icon: <CheckCircle2 size={12} color="#10B981" /> },
@@ -19,8 +21,28 @@ const filters: Filter[] = ["الكل", "نشط", "مجدول", "منتهي"];
 
 export default function CompanyOffers() {
   const router = useRouter();
+  const { session } = useAuth();
   const [filter, setFilter] = useState<Filter>("الكل");
-  const [items, setItems] = useState<CompanyOffer[]>(seed);
+  const [items, setItems] = useState<CompanyOffer[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Reload offers every time this tab comes into focus so newly created
+  // offers (from offer-edit) appear immediately on return.
+  useFocusEffect(
+    useCallback(() => {
+      if (!session?.uid) {
+        setLoading(false);
+        return;
+      }
+      let cancelled = false;
+      setLoading(true);
+      listOffers(session.uid)
+        .then((data) => { if (!cancelled) setItems(data); })
+        .catch(() => { /* keep existing items on error */ })
+        .finally(() => { if (!cancelled) setLoading(false); });
+      return () => { cancelled = true; };
+    }, [session?.uid])
+  );
 
   const list = filter === "الكل" ? items : items.filter((o) => o.state === filter);
   const active = items.filter((o) => o.state === "نشط").length;
@@ -28,7 +50,23 @@ export default function CompanyOffers() {
   const remove = (id: string) => {
     Alert.alert("حذف العرض", "هل أنت متأكد من حذف هذا العرض؟", [
       { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: () => setItems((l) => l.filter((o) => o.id !== id)) },
+      {
+        text: "حذف",
+        style: "destructive",
+        onPress: async () => {
+          // Optimistic UI update — remove from list immediately.
+          setItems((l) => l.filter((o) => o.id !== id));
+          try {
+            await deleteOffer(id);
+          } catch {
+            // If Firestore delete fails, restore the item.
+            Alert.alert("خطأ", "تعذّر حذف العرض، يرجى المحاولة مجدداً");
+            if (session?.uid) {
+              listOffers(session.uid).then(setItems).catch(() => {});
+            }
+          }
+        },
+      },
     ]);
   };
 
@@ -47,67 +85,73 @@ export default function CompanyOffers() {
 
       <FilterTabs tabs={filters} active={filter} onChange={setFilter} />
 
-      <FlatList
-        data={list}
-        keyExtractor={(o) => o.id}
-        contentContainerStyle={styles.list}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListEmptyComponent={
-          <EmptyState
-            icon={<Tag size={40} color={colors.textLight} />}
-            title={filter === "الكل" ? "لا توجد عروض بعد" : `لا توجد عروض ${filter}`}
-            description="أنشئ عروض وخصومات لجذب المزيد من العملاء وزيادة المبيعات"
-            actionLabel="+ إنشاء عرض"
-            onAction={() => router.push("/company-dashboard/offer-edit")}
-            testID="empty-offers"
-          />
-        }
-        renderItem={({ item }) => {
-          const meta = stateMeta[item.state];
-          return (
-            <View style={styles.card} testID={`offer-${item.id}`}>
-              <View style={styles.cardHead}>
-                <Image source={{ uri: item.image }} style={styles.img} />
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountPercent}>{item.discountPercent}%</Text>
-                  <Text style={styles.discountLabel}>خصم</Text>
-                </View>
-                <View style={[styles.stateTag, { backgroundColor: meta.bg }]}>
-                  {meta.icon}
-                  <Text style={[styles.stateTxt, { color: meta.fg }]}>{item.state}</Text>
-                </View>
-              </View>
-
-              <View style={styles.body}>
-                <Text style={styles.offerTitle} numberOfLines={1}>{item.title}</Text>
-                <Text style={styles.offerProduct} numberOfLines={1}>على: {item.productTitle}</Text>
-                {item.description ? (
-                  <Text style={styles.offerDesc} numberOfLines={2}>{item.description}</Text>
-                ) : null}
-                <View style={styles.dateRow}>
-                  <Calendar size={12} color={colors.textMuted} />
-                  <Text style={styles.dateTxt}>{item.startDate} → {item.endDate}</Text>
+      {loading ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator color={colors.primary} />
+        </View>
+      ) : (
+        <FlatList
+          data={list}
+          keyExtractor={(o) => o.id}
+          contentContainerStyle={styles.list}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ListEmptyComponent={
+            <EmptyState
+              icon={<Tag size={40} color={colors.textLight} />}
+              title={filter === "الكل" ? "لا توجد عروض بعد" : `لا توجد عروض ${filter}`}
+              description="أنشئ عروض وخصومات لجذب المزيد من العملاء وزيادة المبيعات"
+              actionLabel="+ إنشاء عرض"
+              onAction={() => router.push("/company-dashboard/offer-edit")}
+              testID="empty-offers"
+            />
+          }
+          renderItem={({ item }) => {
+            const meta = stateMeta[item.state];
+            return (
+              <View style={styles.card} testID={`offer-${item.id}`}>
+                <View style={styles.cardHead}>
+                  <Image source={{ uri: item.image }} style={styles.img} />
+                  <View style={styles.discountBadge}>
+                    <Text style={styles.discountPercent}>{item.discountPercent}%</Text>
+                    <Text style={styles.discountLabel}>خصم</Text>
+                  </View>
+                  <View style={[styles.stateTag, { backgroundColor: meta.bg }]}>
+                    {meta.icon}
+                    <Text style={[styles.stateTxt, { color: meta.fg }]}>{item.state}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    testID={`edit-offer-${item.id}`}
-                    style={styles.editBtn}
-                    onPress={() => router.push({ pathname: "/company-dashboard/offer-edit", params: { id: item.id } })}
-                  >
-                    <Edit3 size={13} color={colors.textMain} />
-                    <Text style={styles.editTxt}>تعديل</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity testID={`delete-offer-${item.id}`} style={styles.deleteBtn} onPress={() => remove(item.id)}>
-                    <Trash2 size={13} color={colors.error} />
-                    <Text style={styles.deleteTxt}>حذف</Text>
-                  </TouchableOpacity>
+                <View style={styles.body}>
+                  <Text style={styles.offerTitle} numberOfLines={1}>{item.title}</Text>
+                  <Text style={styles.offerProduct} numberOfLines={1}>على: {item.productTitle}</Text>
+                  {item.description ? (
+                    <Text style={styles.offerDesc} numberOfLines={2}>{item.description}</Text>
+                  ) : null}
+                  <View style={styles.dateRow}>
+                    <Calendar size={12} color={colors.textMuted} />
+                    <Text style={styles.dateTxt}>{item.startDate} → {item.endDate}</Text>
+                  </View>
+
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      testID={`edit-offer-${item.id}`}
+                      style={styles.editBtn}
+                      onPress={() => router.push({ pathname: "/company-dashboard/offer-edit", params: { id: item.id } })}
+                    >
+                      <Edit3 size={13} color={colors.textMain} />
+                      <Text style={styles.editTxt}>تعديل</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity testID={`delete-offer-${item.id}`} style={styles.deleteBtn} onPress={() => remove(item.id)}>
+                      <Trash2 size={13} color={colors.error} />
+                      <Text style={styles.deleteTxt}>حذف</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        }}
-      />
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -119,6 +163,8 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, color: colors.textMuted, textAlign: "right", marginTop: 2 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.primary, paddingHorizontal: spacing.md, height: 40, borderRadius: radius.md },
   addTxt: { color: "#fff", fontSize: 12, fontWeight: "800" },
+
+  loadingWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
 
   list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
