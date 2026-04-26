@@ -25,21 +25,19 @@ function roleHome(role: UserRole): string {
 }
 
 /**
- * First path-segment values that represent real in-app screens.
- * A logged-in user on any of these must NEVER be redirected to their role home.
+ * All first path-segments that represent valid in-app destinations.
  *
- * This list is also used to detect transitional empty-segment states:
- * Expo Router (especially with the new architecture) can briefly emit
- * segments=[] while navigating between screens. If the last settled
- * segment was one of these, the empty emission is a transition artefact
- * and we skip the guard for that render cycle.
+ * Used for two purposes:
+ *  1. Resetting the redirect-lock when navigation settles on a real screen.
+ *  2. Documenting every legitimate in-app first-segment so the guard never
+ *     fires a redirect while a user is already inside the app.
  */
 const VALID_APP_SEGMENTS: readonly string[] = [
-  "(tabs)",          // customer tabs: home, services, cart, notifications, profile
-  "product",         // product detail
-  "company",         // company detail
-  "workshop",        // workshop detail
-  "booking",         // booking detail
+  "(tabs)",           // customer tabs: home, services, cart, notifications, profile
+  "product",          // product detail  /product/[id]
+  "company",          // company detail  /company/[id]
+  "workshop",         // workshop detail /workshop/[id]
+  "booking",          // booking detail  /booking/[id]
   "workshop-dashboard",
   "company-dashboard",
   "admin",
@@ -47,8 +45,25 @@ const VALID_APP_SEGMENTS: readonly string[] = [
 
 /**
  * Single source of navigation truth.
- * Watches session + loading and redirects based on auth state only.
- * No screen should call router.replace() after an auth action.
+ *
+ * Two problems this guard solves:
+ *
+ * A) Transitional empty-segment states
+ *    Expo Router (new architecture, SDK 54) can briefly emit segments=[] while
+ *    committing a push/replace.  The `prevSeg0` ref tracks the last settled
+ *    first-segment so we can detect these artefacts and skip the cycle.
+ *    Rule: if seg0===undefined AND prevSeg0 is any defined value, it's a
+ *    transition — return early.  (Expanded from the previous version which
+ *    only guarded VALID_APP_SEGMENT predecessors; "auth" is also a valid
+ *    predecessor after a successful login redirect.)
+ *
+ * B) Double router.replace() during login
+ *    After signInWithEmailAndPassword, BOTH login() and onAuthStateChanged
+ *    call setSession() — the second call creates a new object reference and
+ *    re-fires the guard while the first router.replace() is still in flight.
+ *    Two concurrent replaces corrupt the navigation stack and land the user
+ *    on "/" (the public splash) instead of "/(tabs)/home".
+ *    The `redirectingTo` ref prevents the second call from reaching the router.
  */
 function AuthGuard() {
   const { session, loading } = useAuth();
@@ -56,44 +71,47 @@ function AuthGuard() {
   const router = useRouter();
 
   /**
-   * Tracks the last settled (non-empty) first path-segment.
-   * Used to distinguish genuine splash-screen renders (segments=[])
-   * from transient empty states that Expo Router emits mid-navigation.
+   * Last settled (non-undefined) first path-segment.
+   * Updated only when seg0 is defined so transitions never overwrite it.
    */
   const prevSeg0 = useRef<string | undefined>(undefined);
+
+  /**
+   * The href of an in-progress router.replace() call.
+   * Set when a redirect fires; cleared when navigation lands on a
+   * VALID_APP_SEGMENT screen (meaning the redirect completed).
+   * While set, duplicate calls to the same target are suppressed.
+   */
+  const redirectingTo = useRef<string | null>(null);
 
   useEffect(() => {
     if (loading) return;
 
     const seg0 = segments[0] as string | undefined;
 
-    // ── Transition guard ──────────────────────────────────────────────────
-    // Expo Router can briefly emit segments=[] while the navigator is
-    // committing a push/replace between screens.  If the previous settled
-    // screen was a valid in-app screen, treat the empty emission as a
-    // transition artefact and skip this cycle.  The next render will carry
-    // the real destination segments.
-    const inTransition =
-      seg0 === undefined &&
-      prevSeg0.current !== undefined &&
-      VALID_APP_SEGMENTS.includes(prevSeg0.current);
+    // ── A: Transition guard ───────────────────────────────────────────────
+    // Any time seg0 is undefined but we have a previous settled segment,
+    // treat it as a navigation transition artefact and skip this cycle.
+    // The next render will carry the real destination segment.
+    const inTransition = seg0 === undefined && prevSeg0.current !== undefined;
 
-    // Update the ref AFTER the transition check so it always reflects the
-    // last truly settled screen, not the artefact.
     if (seg0 !== undefined) {
       prevSeg0.current = seg0;
+      // ── B: Reset redirect lock ─────────────────────────────────────────
+      // Once we land on any valid in-app screen, the in-flight redirect is
+      // complete.  Clear the lock so future redirects can fire normally.
+      if (redirectingTo.current !== null && VALID_APP_SEGMENTS.includes(seg0)) {
+        redirectingTo.current = null;
+      }
     }
 
     if (inTransition) return;
     // ─────────────────────────────────────────────────────────────────────
 
-    // A logged-in user should be redirected to their role home ONLY when
-    // they are on the splash screen (segments=[]) or inside the auth group.
-    const onAuthOrSplash =
-      seg0 === "auth" || segments.length === 0;
+    // A logged-in user should leave the auth/splash area and go to their home.
+    const onAuthOrSplash = seg0 === "auth" || segments.length === 0;
 
-    // Screens that require authentication — unauthenticated users are sent
-    // back to the splash/index.
+    // Screens that require authentication — unauthenticated users go to splash.
     const onProtected =
       seg0 === "(tabs)" ||
       seg0 === "workshop-dashboard" ||
@@ -101,8 +119,17 @@ function AuthGuard() {
       seg0 === "admin";
 
     if (session && onAuthOrSplash) {
-      router.replace(roleHome(session.role) as Href);
+      // ── B: Redirect lock ────────────────────────────────────────────────
+      // Suppress duplicate router.replace() calls to the same destination.
+      // This prevents two concurrent replaces (from login() + onAuthStateChanged
+      // both calling setSession) from corrupting the navigation stack.
+      const target = roleHome(session.role);
+      if (redirectingTo.current === target) return;
+      redirectingTo.current = target;
+      router.replace(target as Href);
     } else if (!session && onProtected) {
+      if (redirectingTo.current === "/") return;
+      redirectingTo.current = "/";
       router.replace("/");
     }
   }, [session, loading, segments]);
