@@ -1,26 +1,104 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Save, Tag, Percent, Calendar, FileText, Package } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
-import { companyOffers, products } from "../../src/data/mockData";
+import { products } from "../../src/data/mockData";
+import type { CompanyOfferState } from "../../src/data/mockData";
+import { useAuth } from "../../src/context/AuthContext";
+import { createOffer, updateOffer, getOffer } from "../../src/services/companyOffers";
 
 export default function OfferEdit() {
   const router = useRouter();
+  const { session } = useAuth();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const existing = id ? companyOffers.find((o) => o.id === id) : null;
-  const editMode = !!existing;
+  const editMode = !!id;
+
+  const [formLoading, setFormLoading] = useState(editMode); // spinner while loading existing offer
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    title: existing?.title || "",
-    productId: existing?.productId || products[0].id,
-    discount: existing?.discountPercent ? String(existing.discountPercent) : "",
-    startDate: existing?.startDate || "",
-    endDate: existing?.endDate || "",
-    description: existing?.description || "",
-    active: (existing?.state || "نشط") === "نشط",
+    title: "",
+    productId: products[0]?.id ?? "",
+    discount: "",
+    startDate: "",
+    endDate: "",
+    description: "",
+    active: true,
   });
+
+  // In edit mode, load the existing offer from Firestore and populate the form.
+  useEffect(() => {
+    if (!editMode || !id) return;
+    (async () => {
+      try {
+        const offer = await getOffer(id);
+        if (offer) {
+          setForm({
+            title: offer.title,
+            productId: offer.productId ?? products[0]?.id ?? "",
+            discount: String(offer.discountPercent),
+            startDate: offer.startDate,
+            endDate: offer.endDate,
+            description: offer.description,
+            active: offer.state === "نشط",
+          });
+        }
+      } catch {
+        Alert.alert("خطأ", "تعذّر تحميل بيانات العرض");
+      } finally {
+        setFormLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    if (!form.title.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال عنوان العرض");
+      return;
+    }
+    if (!session?.uid) {
+      Alert.alert("خطأ", "غير مسجل الدخول");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const product = products.find((p) => p.id === form.productId);
+      const payload = {
+        title: form.title.trim(),
+        productId: form.productId || undefined,
+        productTitle: product?.title ?? "",
+        image: product?.images[0] ?? "",
+        discountPercent: Number(form.discount) || 0,
+        startDate: form.startDate.trim(),
+        endDate: form.endDate.trim(),
+        state: (form.active ? "نشط" : "مجدول") as CompanyOfferState,
+        description: form.description.trim(),
+      };
+
+      if (editMode && id) {
+        await updateOffer(id, payload);
+      } else {
+        await createOffer(session.uid, payload);
+      }
+
+      router.back();
+    } catch {
+      Alert.alert("خطأ", "تعذّر حفظ العرض، يرجى المحاولة مجدداً");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (formLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { alignItems: "center", justifyContent: "center" }]} edges={["top", "bottom"]}>
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -130,8 +208,17 @@ export default function OfferEdit() {
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} style={styles.footer}>
-          <TouchableOpacity testID="oe-save-btn" style={styles.saveBtn} onPress={() => router.back()}>
-            <Save size={18} color="#fff" />
+          <TouchableOpacity
+            testID="oe-save-btn"
+            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Save size={18} color="#fff" />
+            )}
             <Text style={styles.saveTxt}>{editMode ? "حفظ التعديلات" : "إنشاء العرض"}</Text>
           </TouchableOpacity>
         </SafeAreaView>
