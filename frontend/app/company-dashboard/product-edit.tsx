@@ -1,30 +1,59 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform, Switch, Image, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronRight, Save, Tag, DollarSign, Package, FileText, Plus, X, Star } from "lucide-react-native";
 import { colors, spacing, radius, typography } from "../../src/theme/theme";
-import { products } from "../../src/data/mockData";
+import { useAuth } from "../../src/context/AuthContext";
+import { getProduct, createProduct, updateProduct } from "../../src/services/companyProducts";
 
 export default function ProductEdit() {
   const router = useRouter();
+  const { session } = useAuth();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const existing = id ? products.find((p) => p.id === id) : null;
-  const editMode = !!existing;
+  const editMode = !!id;
+
+  const [formLoading, setFormLoading] = useState(editMode);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({
-    title: existing?.title || "",
-    brand: existing?.brand || "",
-    price: existing?.price ? String(existing.price) : "",
-    oldPrice: existing?.oldPrice ? String(existing.oldPrice) : "",
-    description: existing?.description || "",
-    inStock: existing?.inStock ?? true,
+    title: "",
+    brand: "",
+    price: "",
+    oldPrice: "",
+    description: "",
+    inStock: true,
   });
-  const [images, setImages] = useState<string[]>(existing?.images || []);
+  const [images, setImages] = useState<string[]>([]);
   const [coverIdx, setCoverIdx] = useState(0);
 
+  // In edit mode, load the existing product from Firestore.
+  useEffect(() => {
+    if (!editMode || !id) return;
+    (async () => {
+      try {
+        const product = await getProduct(id);
+        if (product) {
+          setForm({
+            title: product.title,
+            brand: product.brand,
+            price: String(product.price),
+            oldPrice: product.oldPrice ? String(product.oldPrice) : "",
+            description: product.description,
+            inStock: product.inStock,
+          });
+          setImages(product.images);
+          setCoverIdx(0);
+        }
+      } catch {
+        Alert.alert("خطأ", "تعذّر تحميل بيانات المنتج");
+      } finally {
+        setFormLoading(false);
+      }
+    })();
+  }, []);
+
   const addImage = () => {
-    // mock add: cycle through some placeholders
     const pool = [
       "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=600",
       "https://images.unsplash.com/photo-1636613112804-c5aebc1f4d8d?w=600",
@@ -38,9 +67,60 @@ export default function ProductEdit() {
     if (coverIdx === i) setCoverIdx(0);
   };
 
-  const save = () => {
-    router.back();
+  const handleSave = async () => {
+    if (!form.title.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال اسم المنتج");
+      return;
+    }
+    if (!session?.uid) {
+      Alert.alert("خطأ", "غير مسجل الدخول");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Re-order images so the selected cover comes first.
+      const orderedImages = [...images];
+      if (coverIdx > 0 && orderedImages.length > 1) {
+        const [cover] = orderedImages.splice(coverIdx, 1);
+        orderedImages.unshift(cover);
+      }
+
+      const payload = {
+        title: form.title.trim(),
+        brand: form.brand.trim(),
+        price: Number(form.price) || 0,
+        oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
+        description: form.description.trim(),
+        inStock: form.inStock,
+        active: true,
+        images: orderedImages,
+        rating: 0,
+        reviews: 0,
+        specs: [] as { label: string; value: string }[],
+      };
+
+      if (editMode && id) {
+        await updateProduct(id, payload);
+      } else {
+        await createProduct(session.uid, payload);
+      }
+
+      router.back();
+    } catch {
+      Alert.alert("خطأ", "تعذّر حفظ المنتج، يرجى المحاولة مجدداً");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (formLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { alignItems: "center", justifyContent: "center" }]} edges={["top", "bottom"]}>
+        <ActivityIndicator color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -165,8 +245,17 @@ export default function ProductEdit() {
         </ScrollView>
 
         <SafeAreaView edges={["bottom"]} style={styles.footer}>
-          <TouchableOpacity testID="pe-save-btn" style={styles.saveBtn} onPress={save}>
-            <Save size={18} color="#fff" />
+          <TouchableOpacity
+            testID="pe-save-btn"
+            style={[styles.saveBtn, saving && { opacity: 0.7 }]}
+            onPress={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Save size={18} color="#fff" />
+            )}
             <Text style={styles.saveTxt}>{editMode ? "حفظ التعديلات" : "إضافة المنتج"}</Text>
           </TouchableOpacity>
         </SafeAreaView>
