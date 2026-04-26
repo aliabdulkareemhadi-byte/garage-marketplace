@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { I18nManager, View, ActivityIndicator, Platform } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { CartProvider } from "../src/context/CartContext";
-import { AuthProvider } from "../src/context/AuthContext";
+import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { WalletProvider } from "../src/context/WalletContext";
 import { colors } from "../src/theme/theme";
+import type { UserRole } from "../src/data/mockData";
 
 // Force RTL globally
 if (!I18nManager.isRTL) {
@@ -16,10 +17,47 @@ if (!I18nManager.isRTL) {
   } catch {}
 }
 
+function roleHome(role: UserRole): string {
+  if (role === "workshop") return "/workshop-dashboard";
+  if (role === "company") return "/company-dashboard";
+  if (role === "admin") return "/admin/wallet-requests";
+  return "/(tabs)/home";
+}
+
+/**
+ * Single source of navigation truth.
+ * Watches session + loading and redirects based on auth state only.
+ * No screen should call router.replace() after an auth action.
+ */
+function AuthGuard() {
+  const { session, loading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthOrSplash =
+      segments[0] === "auth" || segments.length === 0;
+    const inProtected =
+      segments[0] === "(tabs)" ||
+      segments[0] === "workshop-dashboard" ||
+      segments[0] === "company-dashboard" ||
+      segments[0] === "admin";
+
+    if (session && inAuthOrSplash) {
+      router.replace(roleHome(session.role) as any);
+    } else if (!session && inProtected) {
+      router.replace("/");
+    }
+  }, [session, loading, segments]);
+
+  return null;
+}
+
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    // Short delay to ensure RTL applied before first render on web
     const t = setTimeout(() => setReady(true), Platform.OS === "web" ? 50 : 0);
     return () => clearTimeout(t);
   }, []);
@@ -38,6 +76,7 @@ export default function RootLayout() {
         <WalletProvider>
           <CartProvider>
             <StatusBar style="dark" />
+            <AuthGuard />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="auth" />
