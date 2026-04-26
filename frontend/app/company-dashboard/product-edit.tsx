@@ -73,7 +73,7 @@ export default function ProductEdit() {
       return;
     }
     if (!session?.uid) {
-      Alert.alert("خطأ", "غير مسجل الدخول");
+      Alert.alert("خطأ", "غير مسجل الدخول — session.uid is missing");
       return;
     }
 
@@ -86,19 +86,26 @@ export default function ProductEdit() {
         orderedImages.unshift(cover);
       }
 
+      // Build payload — all optional fields have safe defaults so Firestore
+      // never receives undefined values.
       const payload = {
-        title: form.title.trim(),
-        brand: form.brand.trim(),
+        title: form.title.trim() || "",
+        brand: form.brand.trim() || "",
         price: Number(form.price) || 0,
-        oldPrice: form.oldPrice ? Number(form.oldPrice) : undefined,
-        description: form.description.trim(),
-        inStock: form.inStock,
+        ...(form.oldPrice ? { oldPrice: Number(form.oldPrice) } : {}),
+        description: form.description.trim() || "",
+        inStock: form.inStock === true,
         active: true,
-        images: orderedImages,
+        images: Array.isArray(orderedImages) ? orderedImages : [],
         rating: 0,
         reviews: 0,
         specs: [] as { label: string; value: string }[],
       };
+
+      console.log("[product-edit] handleSave —", editMode ? "UPDATE" : "CREATE");
+      console.log("[product-edit] session.uid:", session.uid);
+      console.log("[product-edit] editMode:", editMode, "| id:", id);
+      console.log("[product-edit] payload:", JSON.stringify(payload, null, 2));
 
       if (editMode && id) {
         await updateProduct(id, payload);
@@ -107,8 +114,23 @@ export default function ProductEdit() {
       }
 
       router.back();
-    } catch {
-      Alert.alert("خطأ", "تعذّر حفظ المنتج، يرجى المحاولة مجدداً");
+    } catch (err: any) {
+      console.error("[product-edit] save FAILED:", err);
+      const code: string = err?.code ?? "unknown";
+      const msg: string = err?.message ?? "unknown error";
+
+      // Surface the exact Firebase error so the developer can act on it.
+      if (code === "permission-denied") {
+        Alert.alert(
+          "خطأ: صلاحيات Firestore",
+          "permission-denied — يرجى تحديث قواعد Firestore في لوحة تحكم Firebase للسماح بالكتابة على مجموعة companyProducts.\n\nCode: " + code
+        );
+      } else {
+        Alert.alert(
+          "خطأ في الحفظ",
+          `تعذّر حفظ المنتج.\n\nCode: ${code}\nMessage: ${msg}`
+        );
+      }
     } finally {
       setSaving(false);
     }
