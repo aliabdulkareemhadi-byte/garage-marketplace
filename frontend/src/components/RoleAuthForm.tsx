@@ -61,7 +61,6 @@ export default function RoleAuthForm({ mode, role, entityId, entityName }: Props
           form.name.trim() || entityName,
           entityId
         );
-        router.replace(isCompany ? "/company-dashboard" : "/workshop-dashboard");
       } else {
         await register(
           role as UserRole,
