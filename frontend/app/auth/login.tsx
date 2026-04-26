@@ -1,21 +1,51 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Mail, Lock, Eye, EyeOff, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react-native";
+import * as Google from "expo-auth-session/providers/google";
 import { colors, spacing, radius } from "../../src/theme/theme";
 import { useAuth } from "../../src/context/AuthContext";
+import { GOOGLE_CLIENT_IDS } from "../../src/config/google";
 
 export default function Login() {
   const router = useRouter();
-  const { login, resendVerification } = useAuth();
+  const { login, loginWithGoogle, resendVerification } = useAuth();
   const [form, setForm] = useState({ email: "", pwd: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [topError, setTopError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
+
+  // Google OAuth request — uses expo-auth-session under the hood.
+  // The `request` object is null until the hook finishes initialising.
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_CLIENT_IDS.webClientId,
+    iosClientId: GOOGLE_CLIENT_IDS.iosClientId,
+    androidClientId: GOOGLE_CLIENT_IDS.androidClientId,
+  });
+
+  // Handle the OAuth response whenever it changes.
+  useEffect(() => {
+    if (!response) return;
+
+    if (response.type === "success") {
+      const { idToken = null, accessToken = null } = response.authentication ?? {};
+      setGoogleLoading(true);
+      setTopError(null);
+      loginWithGoogle(idToken, accessToken)
+        .catch((err: any) => {
+          setTopError(err?.message || "تعذّر تسجيل الدخول عبر Google");
+        })
+        .finally(() => setGoogleLoading(false));
+    } else if (response.type === "error") {
+      setTopError(response.error?.message || "تعذّر تسجيل الدخول عبر Google");
+    }
+    // "dismiss" means the user closed the browser — no action needed.
+  }, [response]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -161,10 +191,15 @@ export default function Login() {
           <View style={{ gap: spacing.md }}>
             <TouchableOpacity
               testID="login-google-btn"
-              style={styles.socialBtn}
-              onPress={() => Alert.alert("تسجيل الدخول عبر Google", "هذه الميزة قيد التطوير وستتوفر قريباً.")}
+              style={[styles.socialBtn, (googleLoading || !request) && { opacity: 0.6 }]}
+              disabled={googleLoading || !request}
+              onPress={() => promptAsync()}
             >
-              <Text style={styles.socialTxt}>متابعة عبر Google</Text>
+              {googleLoading ? (
+                <ActivityIndicator color={colors.textMain} />
+              ) : (
+                <Text style={styles.socialTxt}>متابعة عبر Google</Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               testID="login-apple-btn"
