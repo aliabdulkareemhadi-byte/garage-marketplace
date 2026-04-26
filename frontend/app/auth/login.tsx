@@ -37,7 +37,6 @@ export default function Login() {
     setLoading(true);
     try {
       await login("customer", form.email.trim(), form.pwd);
-      router.replace("/(tabs)/home");
     } catch (err: any) {
       setTopError(err?.message || "تعذّر تسجيل الدخول");
     } finally {
